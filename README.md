@@ -13,6 +13,25 @@ npm run dev -- --port 5173 --strictPort
 
 Use the existing checkout at `/workspace/Game` in the managed cloud environment. Tasks already run in isolated environments; a Git worktree is unnecessary. If the home-directory npm cache is unavailable, use `npm ci --cache /tmp/screenworld-npm-cache`.
 
+## Publish on GitHub Pages
+
+In the repository's **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**. The `Deploy Screenworld to GitHub Pages` workflow builds and deploys `dist` on pushes to `main`; it can also be run manually from the Actions tab.
+
+Once deployed, the game is served at <https://taylortrujeque.github.io/Game/>. GitHub Pages needs the compiled website from `dist`, rather than the source `index.html` and TypeScript files. The Vite configuration uses relative asset URLs so the build works under `/Game/` and on other static hosts.
+
+To check the production build in a strict static server at the same `/Game/` path:
+
+```sh
+npx playwright install chromium
+npm run test:pages
+```
+
+In the managed cloud machine, use the existing browser:
+
+```sh
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:pages
+```
+
 ## Play
 
 | Action                                 | Keyboard                  | Touch                     |
