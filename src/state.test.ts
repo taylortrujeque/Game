@@ -63,6 +63,19 @@ describe("adventure progress", () => {
     expect(coinCount(progress)).toBe(1);
     expect(progress.wrongAnswers).toBe(0);
   });
+  it("counts a timeout as a wrong answer without taking a life or completing the question", () => {
+    const progress = freshProgress();
+    expect(answerQuestion(progress, "jungle-1", null)).toBe(false);
+    expect(coinCount(progress)).toBe(-1);
+    expect(progress.wrongAnswers).toBe(1);
+    expect(progress.lives).toBe(3);
+    expect(progress.answered).toEqual([]);
+    expect(parseProgress(JSON.stringify(progress)).wrongAnswers).toBe(1);
+    answerQuestion(progress, "jungle-1", 2);
+    expect(coinCount(progress)).toBe(4);
+    answerQuestion(progress, "jungle-1", null);
+    expect(coinCount(progress)).toBe(4);
+  });
   it("restores valid saved progress and sanitizes malformed saves", () => {
     expect(parseProgress("{broken")).toEqual(freshProgress());
     expect(parseProgress("null")).toEqual(freshProgress());

@@ -44,6 +44,8 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:pages
 
 Find the golden question blocks in each world. The first challenge identifies the film; the next two test your knowledge. A correct answer gives five coins. Each wrong answer subtracts one coin from your score, including on retries; the score can drop below zero. Solve all three challenges to earn that world’s Power Star. Collect all three stars and visit the palace entrance for the finale.
 
+Each question attempt has a visible five-second countdown. It stops when you answer. Running out of time costs one coin, leaves the question unsolved, and lets you retry with a fresh five seconds. Wrong answers and timeouts do not cost a life. Reading feedback does not use more time or deduct more points. Closing a question cancels its countdown. The deadline uses elapsed time, so a throttled or background tab cannot submit an answer after the limit.
+
 Progress saves to this browser’s `localStorage`. The field guide shows your collection and offers a confirmed reset. Storage-disabled browsers can still play, but progress is limited to the current session. Sound effects are optional and off initially.
 
 Mario starts with three lives, shown as hearts in the game HUD. Bowser patrols all three film worlds and chases Mario when he gets close. Jump over him or steer around him. A bump costs one life and one coin. With lives remaining, Mario returns to that world’s entrance with his coins, answered questions, and Power Stars retained, plus 2.4 seconds of recovery. Question blocks and the entrance are safe areas. Opening a dialog pauses the patrol, and the hub stays peaceful.
@@ -78,6 +80,7 @@ The browser runner starts Vite automatically unless a server is already using po
 
 - `src/content.ts` — film worlds, trivia, portal and coin locations.
 - `src/state.ts` — validated saves, rewards, and completion rules.
+- `src/countdown.ts` — five-second question deadlines and timer cleanup.
 - `src/art.ts` — original, procedurally drawn terrain, character sprites, and world illustrations.
 - `src/game.ts` — animation, movement, camera, collision, collectibles, and interaction ranges.
 - `src/guardian.ts` — Bowser patrols, pursuit, safe areas, and jump/contact rules.

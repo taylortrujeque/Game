@@ -92,7 +92,7 @@ export function coinCount(progress: Progress): number {
 export function answerQuestion(
   progress: Progress,
   id: string,
-  option: number,
+  option: number | null,
 ): boolean {
   if (isGameOver(progress)) return false;
   const question = (["jungle", "galaxy", "castle"] as FilmWorldId[])
@@ -100,12 +100,14 @@ export function answerQuestion(
     .find((question) => question.id === id);
   if (
     !question ||
-    !Number.isInteger(option) ||
-    option < 0 ||
-    option >= question.options.length
+    (option !== null &&
+      (!Number.isInteger(option) ||
+        option < 0 ||
+        option >= question.options.length))
   )
     return false;
   if (progress.answered.includes(id)) return question.answer === option;
+  // A null selection is a timed-out question, with the same one-point penalty.
   if (question.answer !== option) {
     progress.wrongAnswers += 1;
     return false;

@@ -1,5 +1,6 @@
 import "./style.css";
 import { Game, type Interaction } from "./game";
+import { QuestionCountdown, QUESTION_TIME_LIMIT_MS } from "./countdown";
 import { thumbnail } from "./art";
 import {
   worlds,
@@ -34,6 +35,7 @@ const icons: Record<string, string> = {
   jump: '<path d="M12 18V4m-5 5 5-5 5 5M5 19v3h14v-3"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   coin: '<ellipse cx="12" cy="12" rx="8" ry="10"/><path d="M12 7v10"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   heart:
     '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
   compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2Z"/>',
@@ -101,6 +103,12 @@ let currentWorld: WorldId = "hub";
 let audioContext: AudioContext | null = null;
 let toastTimer: ReturnType<typeof setTimeout>;
 let transitioning = false;
+let activeQuestionTimer: QuestionCountdown | null = null;
+
+function stopQuestionTimer() {
+  activeQuestionTimer?.stop();
+  activeQuestionTimer = null;
+}
 
 function sound(kind: "coin" | "jump" | "correct" | "wrong" | "warp") {
   if (!progress.sound) return;
@@ -276,6 +284,7 @@ function updateUI() {
 }
 
 function openDialog(html: string, className = "") {
+  stopQuestionTimer();
   game.setPaused(true);
   $(".modal-close").hidden = isGameOver(progress);
   modal.className = className;
@@ -285,6 +294,7 @@ function openDialog(html: string, className = "") {
 }
 
 function enterWorld(world: WorldId) {
+  stopQuestionTimer();
   if (isGameOver(progress)) {
     showGameOver();
     return;
@@ -319,55 +329,96 @@ function showQuestion(question: Question) {
   ).length;
   openDialog(
     `<div class="quiz-art"><canvas width="660" height="240" data-thumb="${world.id}" aria-hidden="true"></canvas><span class="modal-overline">WORLD ${world.number} · ${world.name.toUpperCase()}</span><span class="quiz-number">SCENE ${world.questions.indexOf(question) + 1} / 3</span><span class="quiz-block">?</span></div>
-    <div class="quiz-body"><div class="eyebrow">LIGHTS. CAMERA. YOUR ANSWER.</div><h2 id="modal-title">${question.title}</h2><p class="question-text">${question.prompt}</p><div class="answer-options">${question.options.map((option, index) => `<button class="answer-option" data-answer="${index}"><span class="answer-letter">${String.fromCharCode(65 + index)}</span><span>${option}</span><span class="answer-result"></span></button>`).join("")}</div><div id="answer-feedback" role="status" aria-live="polite"></div><div class="quiz-bottom"><span>${icon("coin")} Correct: +5 · Wrong: -1 coin</span><span>${count} / 3 scenes complete</span></div></div>`,
+    <div class="quiz-body"><div class="quiz-heading-row"><div><div class="eyebrow">LIGHTS. CAMERA. YOUR ANSWER.</div><h2 id="modal-title">${question.title}</h2></div><div class="quiz-timer" id="quiz-timer" role="timer" aria-live="off" aria-label="5 seconds remaining"><span>${icon("clock")}<strong id="quiz-seconds">5s</strong></span><small id="quiz-timer-caption">TIME LEFT</small></div></div><div class="quiz-time-track" aria-hidden="true"><span id="quiz-time-bar"></span></div><p class="question-text">${question.prompt}</p><div class="answer-options">${question.options.map((option, index) => `<button class="answer-option" data-answer="${index}"><span class="answer-letter">${String.fromCharCode(65 + index)}</span><span>${option}</span><span class="answer-result"></span></button>`).join("")}</div><div id="answer-feedback" role="status" aria-live="polite"></div><div class="quiz-bottom"><span>${icon("coin")} Correct: +5 · Wrong / timeout: -1 coin</span><span>${count} / 3 scenes complete</span></div></div>`,
     "quiz-dialog",
   );
   drawThumbnails(modalContent);
-  modalContent
-    .querySelectorAll<HTMLButtonElement>("[data-answer]")
-    .forEach((button) =>
-      button.addEventListener("click", () => {
-        const option = Number(button.dataset.answer);
-        const correct = answerQuestion(progress, question.id, option);
-        const buttons =
-          modalContent.querySelectorAll<HTMLButtonElement>("[data-answer]");
-        buttons.forEach((button) => {
-          button.disabled = true;
-        });
-        button.classList.add(correct ? "correct" : "incorrect");
-        button.querySelector(".answer-result")!.innerHTML = icon(
-          correct ? "check" : "close",
+  const buttons = [
+    ...modalContent.querySelectorAll<HTMLButtonElement>("[data-answer]"),
+  ];
+  const timerElement = $("#quiz-timer");
+  const secondsLabel = $("#quiz-seconds");
+  const timerCaption = $("#quiz-timer-caption");
+  const timeBar = $("#quiz-time-bar");
+  const rejectedOptions = new Set<number>();
+  let settled = false;
+  const countdown = new QuestionCountdown({
+    onTick: (remaining) => {
+      const seconds = Math.ceil(remaining / 1000);
+      const text = `${seconds}s`;
+      if (secondsLabel.textContent !== text) {
+        secondsLabel.textContent = text;
+        timerElement.setAttribute("aria-label", `${seconds} seconds remaining`);
+      }
+      timeBar.style.transform = `scaleX(${remaining / QUESTION_TIME_LIMIT_MS})`;
+      timerElement.classList.toggle("urgent", remaining <= 2000);
+      timeBar.classList.toggle("urgent", remaining <= 2000);
+    },
+    onExpire: () => finishQuestion(null),
+  });
+
+  function startAttempt() {
+    settled = false;
+    timerElement.classList.remove("stopped");
+    timerCaption.textContent = "TIME LEFT";
+    activeQuestionTimer = countdown;
+    countdown.start();
+  }
+
+  function finishQuestion(option: number | null) {
+    if (settled || !modal.open || !modalContent.contains(timerElement)) return;
+    settled = true;
+    const timedOut = option === null;
+    const correct = answerQuestion(progress, question.id, option);
+    buttons.forEach((button) => {
+      button.disabled = true;
+    });
+    if (option !== null) {
+      const selected = buttons[option];
+      selected.classList.add(correct ? "correct" : "incorrect");
+      selected.querySelector(".answer-result")!.innerHTML = icon(
+        correct ? "check" : "close",
+      );
+      if (!correct) rejectedOptions.add(option);
+    }
+    timerElement.classList.add("stopped");
+    timerCaption.textContent = timedOut ? "TIME’S UP" : "ANSWERED";
+    sound(correct ? "correct" : "wrong");
+    save();
+    updateUI();
+    if (correct) {
+      const complete = earnedStar(progress, world.id);
+      $("#answer-feedback").innerHTML =
+        `<div class="feedback correct-feedback"><strong>${complete ? "Power Star earned! A stellar performance." : "That’s the one! +5 coins"}</strong><p>${question.fact}</p></div><button class="primary-button feedback-continue">${complete ? `${icon("star")} Collect your Power Star` : "Keep exploring " + icon("arrow")}</button>`;
+      $(".feedback-continue").addEventListener("click", () => {
+        modal.close();
+        game.celebrate();
+        toast(
+          complete
+            ? `★ ${world.name} complete! ${starCount(progress)} of 3 Power Stars collected.`
+            : "Scene complete! Follow the coins to your next challenge.",
         );
-        sound(correct ? "correct" : "wrong");
-        save();
-        updateUI();
-        if (correct) {
-          const complete = earnedStar(progress, world.id);
-          $("#answer-feedback").innerHTML =
-            `<div class="feedback correct-feedback"><strong>${complete ? "Power Star earned! A stellar performance." : "That’s the one! +5 coins"}</strong><p>${question.fact}</p></div><button class="primary-button feedback-continue">${complete ? `${icon("star")} Collect your Power Star` : "Keep exploring " + icon("arrow")}</button>`;
-          $(".feedback-continue").addEventListener("click", () => {
-            modal.close();
-            game.celebrate();
-            toast(
-              complete
-                ? `★ ${world.name} complete! ${starCount(progress)} of 3 Power Stars collected.`
-                : "Scene complete! Follow the coins to your next challenge.",
-            );
-          });
-        } else {
-          $("#answer-feedback").innerHTML =
-            `<div class="feedback wrong-feedback"><strong>Not quite — give it another take.</strong><p>-1 coin. You’ve got this!</p></div><button class="primary-button feedback-retry">Try another answer ${icon("arrow")}</button>`;
-          $(".feedback-retry").addEventListener("click", () => {
-            $("#answer-feedback").innerHTML = "";
-            buttons.forEach((b) => {
-              b.disabled = b === button;
-            });
-            const next = [...buttons].find((b) => !b.disabled);
-            next?.focus();
-          });
-        }
-      }),
-    );
+      });
+    } else {
+      $("#answer-feedback").innerHTML =
+        `<div class="feedback wrong-feedback"><strong>${timedOut ? "Time’s up — give it another take." : "Not quite — give it another take."}</strong><p>-1 coin. ${timedOut ? "Try again with a fresh five seconds." : "You’ve got this!"}</p></div><button class="primary-button feedback-retry">Try again (5 seconds) ${icon("arrow")}</button>`;
+      $(".feedback-retry").addEventListener("click", () => {
+        $("#answer-feedback").innerHTML = "";
+        buttons.forEach((button, index) => {
+          button.disabled = rejectedOptions.has(index);
+        });
+        buttons.find((button) => !button.disabled)?.focus();
+        startAttempt();
+      });
+    }
+  }
+
+  buttons.forEach((button, index) =>
+    button.addEventListener("click", () => {
+      if (countdown.trySubmit()) finishQuestion(index);
+    }),
+  );
+  startAttempt();
 }
 
 function showMap() {
@@ -425,7 +476,7 @@ function showGameOver() {
 
 function showHelp() {
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. Each wrong answer costs 1 coin. Jump over Bowser or steer around him — each bump costs 1 life and 1 coin, then returns you to the entrance. You start with 3 lives. Lose all three and it’s Game Over: starting again resets your adventure. Question blocks and the entrance are safe areas.</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
+    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. You have 5 seconds per attempt. A wrong answer or timeout costs 1 coin; retry for a fresh countdown. Jump over Bowser or steer around him — each bump costs 1 life and 1 coin, then returns you to the entrance. You start with 3 lives. Lose all three and it’s Game Over: starting again resets your adventure. Question blocks and the entrance are safe areas.</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
     "help-dialog",
   );
   $("#help-play").addEventListener("click", () => modal.close());
@@ -492,6 +543,7 @@ const game = new Game({
 });
 
 modal.addEventListener("close", () => {
+  stopQuestionTimer();
   if (isGameOver(progress)) showGameOver();
   else game.setPaused(transitioning);
 });
@@ -576,8 +628,12 @@ joystick.addEventListener("pointerup", releaseJoystick);
 joystick.addEventListener("pointercancel", releaseJoystick);
 joystick.addEventListener("lostpointercapture", releaseJoystick);
 window.addEventListener("blur", releaseJoystick);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) activeQuestionTimer?.refresh();
+});
 window.addEventListener("pagehide", (event) => {
   if (!event.persisted) {
+    stopQuestionTimer();
     game.destroy();
     if (audioContext) void audioContext.close();
   }

@@ -2610,6 +2610,108 @@ dialog[open] {
   margin: 0 36px;
   width: calc(100% - 72px);
 }
+
+.quiz-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-content: space-between;
+}
+.quiz-heading-row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.quiz-heading-row h2 {
+  margin-bottom: 0;
+}
+.quiz-timer {
+  flex-shrink: 0;
+  min-width: 68px;
+  padding: 10px 11px 8px;
+  border: 1px solid #d6ddc2;
+  border-radius: 9px;
+  background: #eef1e1;
+  color: #648055;
+  text-align: center;
+}
+.quiz-timer > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.quiz-timer .icon {
+  width: 15px;
+  height: 15px;
+}
+.quiz-timer strong {
+  font:
+    700 23px "Trebuchet MS",
+    Arial,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.quiz-timer small {
+  display: block;
+  font-size: 5px;
+  letter-spacing: 1px;
+  margin-top: 5px;
+  font-weight: 600;
+}
+.quiz-timer.urgent {
+  background: #f7e5d7;
+  border-color: #d9ab90;
+  color: #b4664d;
+}
+.quiz-timer.stopped:not(.urgent) {
+  background: #eeeede;
+  color: #8e987a;
+}
+.quiz-time-track {
+  height: 4px;
+  overflow: hidden;
+  background: #e6e7d7;
+  border-radius: 3px;
+  margin: 18px 0 20px;
+}
+#quiz-time-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  background: #8da773;
+  border-radius: 3px;
+}
+#quiz-time-bar.urgent {
+  background: #c17a58;
+}
+@media (max-width: 560px) {
+  .quiz-heading-row {
+    gap: 10px;
+  }
+  .quiz-heading-row h2 {
+    font-size: 23px;
+    line-height: 1.15;
+  }
+  .quiz-timer {
+    min-width: 59px;
+    padding: 9px 8px 7px;
+  }
+  .quiz-timer strong {
+    font-size: 21px;
+  }
+  .quiz-timer .icon {
+    width: 13px;
+    height: 13px;
+  }
+  .quiz-timer small {
+    font-size: 4px;
+  }
+  .quiz-time-track {
+    margin-top: 16px;
+    margin-bottom: 17px;
+  }
+}
 @media (max-width: 560px) {
   .game-hud {
     gap: 6px;
