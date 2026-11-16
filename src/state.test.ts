@@ -9,6 +9,8 @@ import {
   parseProgress,
   starCount,
   takeEnemyHit,
+  isGameOver,
+  MAX_LIVES,
 } from "./state";
 
 describe("adventure progress", () => {
@@ -82,6 +84,7 @@ describe("adventure progress", () => {
       collected: ["hub-coin-0"],
       wrongAnswers: 0,
       enemyHits: 0,
+      lives: 3,
       sound: true,
     });
     for (const wrongAnswers of [
@@ -117,5 +120,41 @@ describe("adventure progress", () => {
       parseProgress(JSON.stringify({ version: 1, enemyHits: -4 })).enemyHits,
     ).toBe(0);
     expect(freshProgress().enemyHits).toBe(0);
+  });
+  it("starts with three lives and ends the adventure after exactly three hits", () => {
+    const progress = freshProgress();
+    expect(progress.lives).toBe(MAX_LIVES);
+    for (const lives of [2, 1, 0]) {
+      expect(takeEnemyHit(progress)).toBe(true);
+      expect(progress.lives).toBe(lives);
+      expect(isGameOver(progress)).toBe(lives === 0);
+    }
+    expect(progress.enemyHits).toBe(3);
+    expect(takeEnemyHit(progress)).toBe(false);
+    expect(progress.enemyHits).toBe(3);
+    expect(progress.lives).toBe(0);
+    expect(collectCoin(progress, "hub-coin-0")).toBe(false);
+    expect(answerQuestion(progress, "jungle-1", 2)).toBe(false);
+    expect(coinCount(progress)).toBe(-3);
+  });
+  it("persists remaining lives and game over, while migrating older saves with three lives", () => {
+    const progress = freshProgress();
+    takeEnemyHit(progress);
+    expect(parseProgress(JSON.stringify(progress)).lives).toBe(2);
+    takeEnemyHit(progress);
+    takeEnemyHit(progress);
+    expect(isGameOver(parseProgress(JSON.stringify(progress)))).toBe(true);
+    const legacy = parseProgress(
+      JSON.stringify({ version: 1, answered: ["jungle-1"], enemyHits: 9 }),
+    );
+    expect(legacy.lives).toBe(3);
+    expect(legacy.answered).toEqual(["jungle-1"]);
+    for (const lives of [-1, 4, 1.5, "2", null]) {
+      expect(parseProgress(JSON.stringify({ version: 1, lives })).lives).toBe(
+        3,
+      );
+    }
+    expect(freshProgress().lives).toBe(3);
+    expect(isGameOver(freshProgress())).toBe(false);
   });
 });

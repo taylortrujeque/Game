@@ -87,6 +87,10 @@ test("earns all stars, retries trivia, saves progress, and reaches the finale", 
       await expect(page.locator("#coin-count")).toHaveText(
         String(scoreBefore - 1).padStart(2, "0"),
       );
+      await expect(page.locator("#lives-hud")).toHaveAttribute(
+        "aria-label",
+        "3 of 3 lives remaining",
+      );
       expect(
         await page.evaluate(
           () =>
@@ -168,6 +172,23 @@ test("phone layout supports touch movement, a portal, and an accessible field gu
   await expect(page.locator("#modal-title")).toHaveText("The field guide.");
   await page.getByRole("button", { name: "Close dialog" }).tap();
   await expect(page.locator("#modal")).not.toBeVisible();
+  // A saved game-over state must also be usable on a phone.
+  await page.evaluate(() => {
+    const key = "screenworld-save-v1";
+    const progress = JSON.parse(localStorage.getItem(key) || '{"version":1}');
+    progress.lives = 0;
+    localStorage.setItem(key, JSON.stringify(progress));
+  });
+  await page.reload();
+  await expect(page.locator("#modal-title")).toHaveText("Game Over");
+  await page.getByRole("button", { name: "Start again" }).tap();
+  await expect(page.locator("#lives-hud")).toHaveAttribute(
+    "aria-label",
+    "3 of 3 lives remaining",
+  );
+  await expect(page.locator("#scene-label")).toHaveText(
+    "PEACH’S PICTURE PALACE",
+  );
   expect(errors).toEqual([]);
   await context.close();
 });
@@ -190,6 +211,10 @@ test("Bowser pursues Mario, costs one point per bump, and pauses during trivia a
   await expect(page.locator("#coin-count")).toHaveText(
     String(scoreBefore - 1).padStart(2, "0"),
   );
+  await expect(page.locator("#lives-hud")).toHaveAttribute(
+    "aria-label",
+    "2 of 3 lives remaining",
+  );
   await page.waitForTimeout(600);
   await expect(page.locator("#coin-count")).toHaveText(
     String(scoreBefore - 1).padStart(2, "0"),
@@ -210,4 +235,97 @@ test("Bowser pursues Mario, costs one point per bump, and pauses during trivia a
     String(scoreBefore - 1).padStart(2, "0"),
   );
   await expect(page.locator("#enemy-warning")).not.toBeVisible();
+  await expect(page.locator("#lives-hud")).toHaveAttribute(
+    "aria-label",
+    "2 of 3 lives remaining",
+  );
+});
+
+test("three Bowser hits force game over, survive reload, and require a fresh start", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() =>
+    localStorage.setItem(
+      "screenworld-save-v1",
+      JSON.stringify({
+        version: 1,
+        answered: ["jungle-1", "jungle-2", "jungle-3"],
+        collected: ["hub-coin-0"],
+        wrongAnswers: 1,
+        enemyHits: 0,
+        lives: 3,
+        sound: true,
+      }),
+    ),
+  );
+  await page.reload();
+  await expect(page.locator("#star-count")).toHaveText("1");
+  await page.locator("#map-nav").click();
+  await page.locator('#modal [data-world="jungle"]').click();
+  await expect(page.locator("#scene-label")).toHaveText("JURASSIC JUNGLE");
+  await page.waitForTimeout(200);
+  for (const lives of [2, 1, 0]) {
+    if (lives < 2) await page.waitForTimeout(2500);
+    await move(page, "w", 600);
+    await expect(page.locator("#lives-hud")).toHaveAttribute(
+      "aria-label",
+      `${lives} of 3 lives remaining`,
+    );
+    if (lives > 0) {
+      await expect(page.locator("#star-count")).toHaveText("1");
+      await expect(page.locator("#interaction-label")).toHaveText(
+        "Return to the hub",
+      );
+      await expect(page.locator("#modal")).not.toBeVisible();
+    }
+  }
+  await expect(page.locator("#modal-title")).toHaveText("Game Over");
+  await expect(
+    page.getByRole("button", { name: "Close dialog" }),
+  ).not.toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#modal")).toBeVisible();
+  await page.mouse.click(2, 2);
+  await expect(page.locator("#modal")).toBeVisible();
+  const finalScore = await page.locator("#coin-count").innerText();
+  await page.waitForTimeout(700);
+  await expect(page.locator("#coin-count")).toHaveText(finalScore);
+  await page.reload();
+  await expect(page.locator("#modal-title")).toHaveText("Game Over");
+  await expect(page.locator("#lives-hud")).toHaveAttribute(
+    "aria-label",
+    "0 of 3 lives remaining",
+  );
+  await page.getByRole("button", { name: "Start again" }).click();
+  await expect(page.locator("#modal")).not.toBeVisible();
+  await expect(page.locator("#scene-label")).toHaveText(
+    "PEACH’S PICTURE PALACE",
+  );
+  await expect(page.locator("#lives-hud")).toHaveAttribute(
+    "aria-label",
+    "3 of 3 lives remaining",
+  );
+  await expect(page.locator("#coin-count")).toHaveText("00");
+  await expect(page.locator("#star-count")).toHaveText("0");
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("screenworld-save-v1")!),
+    ),
+  ).toEqual({
+    version: 1,
+    answered: [],
+    collected: [],
+    wrongAnswers: 0,
+    enemyHits: 0,
+    lives: 3,
+    sound: true,
+  });
+  await page.locator("#map-nav").click();
+  await page.locator('#modal [data-world="galaxy"]').click();
+  await expect(page.locator("#scene-label")).toHaveText("GALACTIC OUTPOST");
+  await expect(page.locator("#lives-hud")).toHaveAttribute(
+    "aria-label",
+    "3 of 3 lives remaining",
+  );
 });

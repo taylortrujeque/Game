@@ -20,7 +20,13 @@ import {
   type Question,
   type WorldId,
 } from "./content";
-import { collectCoin, earnedStar, takeEnemyHit, type Progress } from "./state";
+import {
+  collectCoin,
+  earnedStar,
+  isGameOver,
+  takeEnemyHit,
+  type Progress,
+} from "./state";
 import {
   createGuardian,
   guardianCanHit,
@@ -157,11 +163,12 @@ export class Game {
   }
 
   setPaused(paused: boolean) {
-    this.paused = paused;
+    this.paused = paused || isGameOver(this.options.progress);
     this.clearInput();
   }
 
   enter(world: WorldId) {
+    if (isGameOver(this.options.progress)) return;
     this.world = world;
     this.player = { x: 640, y: world === "hub" ? 706 : 720, direction: 1 };
     this.jumpHeight = 0;
@@ -176,13 +183,15 @@ export class Game {
   }
 
   jump() {
-    if (this.paused || this.jumpTime > 0) return;
+    if (this.paused || isGameOver(this.options.progress) || this.jumpTime > 0)
+      return;
     this.jumpTime = 0.001;
     this.options.onJump();
   }
 
   interact() {
-    if (!this.paused && this.nearby) this.options.onInteract(this.nearby);
+    if (!this.paused && !isGameOver(this.options.progress) && this.nearby)
+      this.options.onInteract(this.nearby);
   }
 
   celebrate() {
@@ -339,6 +348,12 @@ export class Game {
         if (!this.blocked(nx, this.player.y)) this.player.x = nx;
         if (!this.blocked(this.player.x, ny)) this.player.y = ny;
         takeEnemyHit(this.options.progress);
+        if (isGameOver(this.options.progress)) {
+          this.setPaused(true);
+        } else {
+          this.enter(this.world);
+          this.recoveryTime = HIT_RECOVERY_SECONDS;
+        }
         this.options.onEnemyHit();
       }
     }
@@ -505,7 +520,10 @@ export class Game {
       ? Math.min((timestamp - this.lastTime) / 1000, 0.04)
       : 0;
     this.lastTime = timestamp;
-    const moving = !this.paused && !document.hidden ? this.update(dt) : false;
+    const moving =
+      !this.paused && !document.hidden && !isGameOver(this.options.progress)
+        ? this.update(dt)
+        : false;
     this.draw(moving);
     this.animation = requestAnimationFrame(this.frame);
   };

@@ -6,12 +6,14 @@ import {
 } from "./content";
 
 export const SAVE_KEY = "screenworld-save-v1";
+export const MAX_LIVES = 3;
 export interface Progress {
   version: 1;
   answered: string[];
   collected: string[];
   wrongAnswers: number;
   enemyHits: number;
+  lives: number;
   sound: boolean;
 }
 export const freshProgress = (): Progress => ({
@@ -20,6 +22,7 @@ export const freshProgress = (): Progress => ({
   collected: [],
   wrongAnswers: 0,
   enemyHits: 0,
+  lives: MAX_LIVES,
   sound: false,
 });
 
@@ -50,11 +53,22 @@ export function parseProgress(raw: string | null): Progress {
         Number.isSafeInteger(value.enemyHits) && value.enemyHits >= 0
           ? value.enemyHits
           : 0,
+      // Older saves receive three lives without losing their existing progress.
+      lives:
+        Number.isInteger(value.lives) &&
+        value.lives >= 0 &&
+        value.lives <= MAX_LIVES
+          ? value.lives
+          : MAX_LIVES,
       sound: value.sound === true,
     };
   } catch {
     return freshProgress();
   }
+}
+
+export function isGameOver(progress: Progress): boolean {
+  return progress.lives === 0;
 }
 
 export function earnedStar(progress: Progress, world: FilmWorldId): boolean {
@@ -80,6 +94,7 @@ export function answerQuestion(
   id: string,
   option: number,
 ): boolean {
+  if (isGameOver(progress)) return false;
   const question = (["jungle", "galaxy", "castle"] as FilmWorldId[])
     .flatMap((world) => worldById(world).questions)
     .find((question) => question.id === id);
@@ -99,11 +114,19 @@ export function answerQuestion(
   return true;
 }
 export function collectCoin(progress: Progress, id: string): boolean {
-  if (!allCoinIds.has(id) || progress.collected.includes(id)) return false;
+  if (
+    isGameOver(progress) ||
+    !allCoinIds.has(id) ||
+    progress.collected.includes(id)
+  )
+    return false;
   progress.collected.push(id);
   return true;
 }
 
-export function takeEnemyHit(progress: Progress): void {
+export function takeEnemyHit(progress: Progress): boolean {
+  if (isGameOver(progress)) return false;
   progress.enemyHits += 1;
+  progress.lives -= 1;
+  return true;
 }

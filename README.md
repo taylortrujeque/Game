@@ -46,7 +46,9 @@ Find the golden question blocks in each world. The first challenge identifies th
 
 Progress saves to this browser’s `localStorage`. The field guide shows your collection and offers a confirmed reset. Storage-disabled browsers can still play, but progress is limited to the current session. Sound effects are optional and off initially.
 
-Bowser patrols all three film worlds and chases Mario when he gets close. Jump over him or steer around him. A bump costs one coin and gives Mario 2.4 seconds of recovery; Bowser also pauses briefly, so one collision cannot drain the score every frame. Question blocks and the entrance are safe areas. Opening a dialog pauses the patrol. The hub stays peaceful, and enemy penalties save separately from wrong trivia answers.
+Mario starts with three lives, shown as hearts in the game HUD. Bowser patrols all three film worlds and chases Mario when he gets close. Jump over him or steer around him. A bump costs one life and one coin. With lives remaining, Mario returns to that world’s entrance with his coins, answered questions, and Power Stars retained, plus 2.4 seconds of recovery. Question blocks and the entrance are safe areas. Opening a dialog pauses the patrol, and the hub stays peaceful.
+
+Losing the third life shows Game Over and stops play. **Start again** resets coins, answered trivia, Power Stars, and penalties, restores three lives, and returns Mario to Mushroom Meadow. Sound preferences are preserved. Lives and Game Over save across reloads; switching worlds does not refill them. Older saves keep their progress and receive three lives when first loaded. Wrong trivia answers still cost only one coin, not a life.
 
 ## Check
 

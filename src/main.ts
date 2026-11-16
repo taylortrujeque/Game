@@ -13,6 +13,8 @@ import {
   coinCount,
   earnedStar,
   freshProgress,
+  isGameOver,
+  MAX_LIVES,
   parseProgress,
   SAVE_KEY,
   starCount,
@@ -32,6 +34,8 @@ const icons: Record<string, string> = {
   jump: '<path d="M12 18V4m-5 5 5-5 5 5M5 19v3h14v-3"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   coin: '<ellipse cx="12" cy="12" rx="8" ry="10"/><path d="M12 7v10"/>',
+  heart:
+    '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
   compass: '<circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6 6-2Z"/>',
   flag: '<path d="M5 22V3m0 0c4-3 8 3 14 0v10c-6 3-10-3-14 0"/>',
 };
@@ -64,13 +68,13 @@ app.innerHTML = `
     </section>
 
     <section class="game-frame" aria-label="Playable adventure">
-      <div class="game-toolbar"><div class="live-world"><span class="live-dot"></span><span id="scene-label">PEACH’S PICTURE PALACE</span><span class="world-number" id="world-number">WORLD 00</span></div><div class="game-hud"><span class="coin-hud">${icon("coin")}<b id="coin-count">00</b></span><span class="hud-divider"></span><span class="star-hud">${icon("star")}<b id="star-count">0</b><span>/ 3</span></span><button id="help-button" class="icon-button" aria-label="How to play">${icon("help")}</button></div></div>
+      <div class="game-toolbar"><div class="live-world"><span class="live-dot"></span><span id="scene-label">PEACH’S PICTURE PALACE</span><span class="world-number" id="world-number">WORLD 00</span></div><div class="game-hud"><span class="coin-hud">${icon("coin")}<b id="coin-count">00</b></span><span class="hud-divider"></span><span class="lives-hud" id="lives-hud" role="img" aria-label="3 of 3 lives remaining"></span><span class="hud-divider"></span><span class="star-hud">${icon("star")}<b id="star-count">0</b><span>/ 3</span></span><button id="help-button" class="icon-button" aria-label="How to play">${icon("help")}</button></div></div>
       <div class="game-stage" id="game-stage">
         <canvas id="game" tabindex="0" aria-label="Screenworld game. Use arrow keys or WASD to move, Space to jump over Bowser, and E to interact. On touch screens use the joystick and action buttons."></canvas>
         <div class="location-card"><span class="location-icon">${icon("flag")}</span><div><small id="location-type">THE HUB</small><strong id="location-name">Mushroom Meadow</strong></div></div>
         <div class="quest-card" id="quest-card"><span class="quest-icon">${icon("star")}</span><div><small>YOUR NEXT SCENE</small><strong id="quest-title">Find your first film world</strong><p id="quest-description">Step into a painting. Every great story starts with a little curiosity.</p></div></div>
         <button class="back-hub" id="back-hub" hidden>${icon("back")} Back to hub</button>
-        <div class="enemy-warning" id="enemy-warning" hidden><span class="enemy-dot"></span><span><strong>BOWSER PATROL</strong><small>Jump or steer clear · Bump: -1 coin</small></span></div>
+        <div class="enemy-warning" id="enemy-warning" hidden><span class="enemy-dot"></span><span><strong>BOWSER PATROL</strong><small>Jump or steer clear · Bump: -1 life</small></span></div>
         <div class="scene-chapter" id="scene-chapter"><span>EXPLORE. DISCOVER. PLAY.</span><strong>Adventure is<br>just a warp away.</strong></div>
         <div class="game-controls">
           <div class="joystick-area"><button id="joystick" class="joystick" aria-label="Movement joystick. Drag in a direction to move Mario."><span class="joystick-cross"></span><span class="joystick-knob"></span></button><span class="control-caption">MOVE <kbd>W A S D</kbd></span></div>
@@ -192,6 +196,16 @@ function bindWorldCards(root: ParentNode) {
 
 function updateUI() {
   const stars = starCount(progress);
+  $("#lives-hud").innerHTML = Array.from(
+    { length: MAX_LIVES },
+    (_, i) =>
+      `<span class="life-heart${i >= progress.lives ? " lost" : ""}">${icon("heart")}</span>`,
+  ).join("");
+  $("#lives-hud").setAttribute(
+    "aria-label",
+    `${progress.lives} of ${MAX_LIVES} lives remaining`,
+  );
+  $("#lives-hud").classList.toggle("critical", progress.lives === 1);
   $("#coin-count").textContent = String(coinCount(progress)).padStart(2, "0");
   $("#star-count").textContent = String(stars);
   $("#star-progress").textContent = `${stars} of 3`;
@@ -263,6 +277,7 @@ function updateUI() {
 
 function openDialog(html: string, className = "") {
   game.setPaused(true);
+  $(".modal-close").hidden = isGameOver(progress);
   modal.className = className;
   modalContent.innerHTML = html;
   if (!modal.open) modal.showModal();
@@ -270,6 +285,10 @@ function openDialog(html: string, className = "") {
 }
 
 function enterWorld(world: WorldId) {
+  if (isGameOver(progress)) {
+    showGameOver();
+    return;
+  }
   if (transitioning) return;
   transitioning = true;
   game.setPaused(true);
@@ -372,23 +391,41 @@ function showGuide() {
   drawThumbnails(modalContent);
   $("#reset-progress").addEventListener("click", () => {
     openDialog(
-      `<div class="modal-heading"><span class="eyebrow">A FRESH START</span><h2 id="modal-title">Another take?</h2><p>This clears your coins, answered trivia, and Power Stars in this browser.</p></div><div class="confirm-actions"><button class="secondary-button" id="cancel-reset">Keep my adventure</button><button class="primary-button" id="confirm-reset">Start fresh ${icon("arrow")}</button></div>`,
+      `<div class="modal-heading"><span class="eyebrow">A FRESH START</span><h2 id="modal-title">Another take?</h2><p>This clears your coins, answered trivia, and Power Stars, and restores all 3 lives.</p></div><div class="confirm-actions"><button class="secondary-button" id="cancel-reset">Keep my adventure</button><button class="primary-button" id="confirm-reset">Start fresh ${icon("arrow")}</button></div>`,
       "small-dialog",
     );
     $("#cancel-reset").addEventListener("click", showGuide);
     $("#confirm-reset").addEventListener("click", () => {
-      const soundEnabled = progress.sound;
-      Object.assign(progress, freshProgress(), { sound: soundEnabled });
-      save();
-      modal.close();
-      enterWorld("hub");
+      restartAdventure();
     });
   });
 }
 
+function restartAdventure() {
+  const soundEnabled = progress.sound;
+  Object.assign(progress, freshProgress(), { sound: soundEnabled });
+  clearTimeout(toastTimer);
+  $("#toast").hidden = true;
+  save();
+  updateUI();
+  modal.close();
+  enterWorld("hub");
+}
+
+function showGameOver() {
+  if (!isGameOver(progress)) return;
+  clearTimeout(toastTimer);
+  $("#toast").hidden = true;
+  openDialog(
+    `<div class="game-over-hearts" aria-hidden="true">${icon("heart")}${icon("heart")}${icon("heart")}</div><div class="modal-heading"><span class="eyebrow">EVERY HERO GETS ANOTHER TAKE</span><h2 id="modal-title">Game Over</h2><p>You’re out of lives. A new adventure starts in Mushroom Meadow with three fresh hearts.</p></div><div class="game-over-score"><span>${icon("star")} ${starCount(progress)} / 3 Power Stars</span><span>${icon("coin")} ${coinCount(progress)} coin score</span></div><p class="restart-note">Starting again clears your coins, Power Stars, and answered trivia.</p><button class="primary-button" id="restart-adventure">Start again ${icon("arrow")}</button>`,
+    "game-over-dialog",
+  );
+  $("#restart-adventure").addEventListener("click", restartAdventure);
+}
+
 function showHelp() {
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. Each wrong answer costs 1 coin. Jump over Bowser or steer around him — a bump also costs 1 coin. Question blocks and the entrance are safe areas.</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
+    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. Each wrong answer costs 1 coin. Jump over Bowser or steer around him — each bump costs 1 life and 1 coin, then returns you to the entrance. You start with 3 lives. Lose all three and it’s Game Over: starting again resets your adventure. Question blocks and the entrance are safe areas.</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
     "help-dialog",
   );
   $("#help-play").addEventListener("click", () => modal.close());
@@ -445,16 +482,27 @@ const game = new Game({
   onEnemyHit: () => {
     save();
     sound("wrong");
-    $("#coin-count").textContent = String(coinCount(progress)).padStart(2, "0");
-    toast("Bowser bump! -1 coin. Jump or steer around him!");
+    updateUI();
+    if (isGameOver(progress)) showGameOver();
+    else
+      toast(
+        `Bowser bump! -1 life and -1 coin. ${progress.lives} ${progress.lives === 1 ? "life" : "lives"} left. Back to the entrance!`,
+      );
   },
 });
 
 modal.addEventListener("close", () => {
-  game.setPaused(transitioning);
+  if (isGameOver(progress)) showGameOver();
+  else game.setPaused(transitioning);
 });
-$(".modal-close").addEventListener("click", () => modal.close());
+modal.addEventListener("cancel", (event) => {
+  if (isGameOver(progress)) event.preventDefault();
+});
+$(".modal-close").addEventListener("click", () => {
+  if (!isGameOver(progress)) modal.close();
+});
 modal.addEventListener("click", (event) => {
+  if (isGameOver(progress)) return;
   if (event.target === modal) {
     const box = modal.getBoundingClientRect();
     if (
@@ -535,3 +583,4 @@ window.addEventListener("pagehide", (event) => {
   }
 });
 updateUI();
+if (isGameOver(progress)) showGameOver();
