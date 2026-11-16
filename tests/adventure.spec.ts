@@ -80,8 +80,20 @@ test("earns all stars, retries trivia, saves progress, and reaches the finale", 
     await move(page, "w", 1500);
     await interact(page, "Name that movie");
     if (index === 0) {
+      const scoreBefore = Number(await page.locator("#coin-count").innerText());
       await page.locator('[data-answer="0"]').click();
       await expect(page.locator(".wrong-feedback")).toContainText("Not quite");
+      await expect(page.locator(".wrong-feedback")).toContainText("-1 coin");
+      await expect(page.locator("#coin-count")).toHaveText(
+        String(scoreBefore - 1).padStart(2, "0"),
+      );
+      expect(
+        await page.evaluate(
+          () =>
+            JSON.parse(localStorage.getItem("screenworld-save-v1")!)
+              .wrongAnswers,
+        ),
+      ).toBe(1);
       await page.locator(".feedback-retry").click();
       await expect(page.locator('[data-answer="2"]')).toBeEnabled();
     }
@@ -94,7 +106,9 @@ test("earns all stars, retries trivia, saves progress, and reaches the finale", 
     await answer(page, route.answers[2]);
     await expect(page.locator("#star-count")).toHaveText(String(index + 1));
   }
+  const savedScore = await page.locator("#coin-count").innerText();
   await page.reload();
+  await expect(page.locator("#coin-count")).toHaveText(savedScore);
   await expect(page.locator("#star-count")).toHaveText("3");
   await expect(page.locator("#quest-title")).toHaveText(
     "Your grand finale awaits",

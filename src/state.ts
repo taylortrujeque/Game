@@ -10,12 +10,14 @@ export interface Progress {
   version: 1;
   answered: string[];
   collected: string[];
+  wrongAnswers: number;
   sound: boolean;
 }
 export const freshProgress = (): Progress => ({
   version: 1,
   answered: [],
   collected: [],
+  wrongAnswers: 0,
   sound: false,
 });
 
@@ -38,6 +40,10 @@ export function parseProgress(raw: string | null): Progress {
       version: 1,
       answered: validIds(value.answered, questionIds),
       collected: validIds(value.collected, allCoinIds),
+      wrongAnswers:
+        Number.isSafeInteger(value.wrongAnswers) && value.wrongAnswers >= 0
+          ? value.wrongAnswers
+          : 0,
       sound: value.sound === true,
     };
   } catch {
@@ -56,7 +62,11 @@ export function starCount(progress: Progress): number {
   ).length;
 }
 export function coinCount(progress: Progress): number {
-  return progress.collected.length + progress.answered.length * 5;
+  return (
+    progress.collected.length +
+    progress.answered.length * 5 -
+    progress.wrongAnswers
+  );
 }
 export function answerQuestion(
   progress: Progress,
@@ -66,8 +76,19 @@ export function answerQuestion(
   const question = (["jungle", "galaxy", "castle"] as FilmWorldId[])
     .flatMap((world) => worldById(world).questions)
     .find((question) => question.id === id);
-  if (!question || question.answer !== option) return false;
-  if (!progress.answered.includes(id)) progress.answered.push(id);
+  if (
+    !question ||
+    !Number.isInteger(option) ||
+    option < 0 ||
+    option >= question.options.length
+  )
+    return false;
+  if (progress.answered.includes(id)) return question.answer === option;
+  if (question.answer !== option) {
+    progress.wrongAnswers += 1;
+    return false;
+  }
+  progress.answered.push(id);
   return true;
 }
 export function collectCoin(progress: Progress, id: string): boolean {

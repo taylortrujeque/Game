@@ -42,7 +42,7 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:pages
 | Choose a world                         | World map or a world card | World map or a world card |
 | Close a dialog                         | Escape or close button    | Close button              |
 
-Find the golden question blocks in each world. The first challenge identifies the film; the next two test your knowledge. A correct answer gives five coins. Solve all three challenges to earn that world’s Power Star. Wrong answers can be retried without a penalty. Collect all three stars and visit the palace entrance for the finale.
+Find the golden question blocks in each world. The first challenge identifies the film; the next two test your knowledge. A correct answer gives five coins. Each wrong answer subtracts one coin from your score, including on retries; the score can drop below zero. Solve all three challenges to earn that world’s Power Star. Collect all three stars and visit the palace entrance for the finale.
 
 Progress saves to this browser’s `localStorage`. The field guide shows your collection and offers a confirmed reset. Storage-disabled browsers can still play, but progress is limited to the current session. Sound effects are optional and off initially.
 

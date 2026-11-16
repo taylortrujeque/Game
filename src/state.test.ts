@@ -14,10 +14,6 @@ describe("adventure progress", () => {
   it("awards one star only after all three correct challenges in a world", () => {
     const progress = freshProgress();
     const questions = worlds[0].questions;
-    expect(
-      answerQuestion(progress, questions[0].id, (questions[0].answer + 1) % 4),
-    ).toBe(false);
-    expect(progress.answered).toEqual([]);
     for (const question of questions.slice(0, 2))
       answerQuestion(progress, question.id, question.answer);
     expect(earnedStar(progress, "jungle")).toBe(false);
@@ -28,6 +24,29 @@ describe("adventure progress", () => {
     answerQuestion(progress, questions[2].id, questions[2].answer);
     expect(coinCount(progress)).toBe(15);
   });
+  it("subtracts one point for each wrong answer, including retries and at zero", () => {
+    const progress = freshProgress();
+    const question = worlds[0].questions[0];
+    const wrongAnswer = (question.answer + 1) % question.options.length;
+    collectCoin(progress, "hub-coin-0");
+    collectCoin(progress, "hub-coin-1");
+    for (const expected of [1, 0, -1]) {
+      expect(answerQuestion(progress, question.id, wrongAnswer)).toBe(false);
+      expect(coinCount(progress)).toBe(expected);
+      expect(progress.answered).toEqual([]);
+      expect(starCount(progress)).toBe(0);
+    }
+    expect(progress.wrongAnswers).toBe(3);
+    const restored = parseProgress(JSON.stringify(progress));
+    expect(coinCount(restored)).toBe(-1);
+    expect(restored.wrongAnswers).toBe(3);
+    expect(answerQuestion(restored, question.id, question.answer)).toBe(true);
+    expect(coinCount(restored)).toBe(4);
+    // A stale submission for a completed challenge must not change its score.
+    answerQuestion(restored, question.id, question.answer);
+    answerQuestion(restored, question.id, wrongAnswer);
+    expect(coinCount(restored)).toBe(4);
+  });
   it("does not duplicate collected coins or accept invented rewards", () => {
     const progress = freshProgress();
     expect(collectCoin(progress, "hub-coin-0")).toBe(true);
@@ -35,6 +54,11 @@ describe("adventure progress", () => {
     expect(collectCoin(progress, "invented-coin")).toBe(false);
     expect(coinCount(progress)).toBe(1);
     expect(answerQuestion(progress, "invented-question", 0)).toBe(false);
+    for (const option of [-1, 4, 1.5, NaN]) {
+      expect(answerQuestion(progress, "jungle-1", option)).toBe(false);
+    }
+    expect(coinCount(progress)).toBe(1);
+    expect(progress.wrongAnswers).toBe(0);
   });
   it("restores valid saved progress and sanitizes malformed saves", () => {
     expect(parseProgress("{broken")).toEqual(freshProgress());
@@ -55,8 +79,21 @@ describe("adventure progress", () => {
       version: 1,
       answered: ["jungle-1"],
       collected: ["hub-coin-0"],
+      wrongAnswers: 0,
       sound: true,
     });
+    for (const wrongAnswers of [
+      -1,
+      1.5,
+      "2",
+      null,
+      Number.MAX_SAFE_INTEGER + 1,
+    ]) {
+      expect(
+        parseProgress(JSON.stringify({ version: 1, wrongAnswers }))
+          .wrongAnswers,
+      ).toBe(0);
+    }
   });
   it("completes the adventure when every film world is solved", () => {
     const progress = freshProgress();

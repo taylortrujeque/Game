@@ -298,7 +298,7 @@ function showQuestion(question: Question) {
   ).length;
   openDialog(
     `<div class="quiz-art"><canvas width="660" height="240" data-thumb="${world.id}" aria-hidden="true"></canvas><span class="modal-overline">WORLD ${world.number} · ${world.name.toUpperCase()}</span><span class="quiz-number">SCENE ${world.questions.indexOf(question) + 1} / 3</span><span class="quiz-block">?</span></div>
-    <div class="quiz-body"><div class="eyebrow">LIGHTS. CAMERA. YOUR ANSWER.</div><h2 id="modal-title">${question.title}</h2><p class="question-text">${question.prompt}</p><div class="answer-options">${question.options.map((option, index) => `<button class="answer-option" data-answer="${index}"><span class="answer-letter">${String.fromCharCode(65 + index)}</span><span>${option}</span><span class="answer-result"></span></button>`).join("")}</div><div id="answer-feedback" role="status" aria-live="polite"></div><div class="quiz-bottom"><span>${icon("coin")} +5 coins for a correct answer</span><span>${count} / 3 scenes complete</span></div></div>`,
+    <div class="quiz-body"><div class="eyebrow">LIGHTS. CAMERA. YOUR ANSWER.</div><h2 id="modal-title">${question.title}</h2><p class="question-text">${question.prompt}</p><div class="answer-options">${question.options.map((option, index) => `<button class="answer-option" data-answer="${index}"><span class="answer-letter">${String.fromCharCode(65 + index)}</span><span>${option}</span><span class="answer-result"></span></button>`).join("")}</div><div id="answer-feedback" role="status" aria-live="polite"></div><div class="quiz-bottom"><span>${icon("coin")} Correct: +5 · Wrong: -1 coin</span><span>${count} / 3 scenes complete</span></div></div>`,
     "quiz-dialog",
   );
   drawThumbnails(modalContent);
@@ -318,10 +318,10 @@ function showQuestion(question: Question) {
           correct ? "check" : "close",
         );
         sound(correct ? "correct" : "wrong");
+        save();
+        updateUI();
         if (correct) {
           const complete = earnedStar(progress, world.id);
-          save();
-          updateUI();
           $("#answer-feedback").innerHTML =
             `<div class="feedback correct-feedback"><strong>${complete ? "Power Star earned! A stellar performance." : "That’s the one! +5 coins"}</strong><p>${question.fact}</p></div><button class="primary-button feedback-continue">${complete ? `${icon("star")} Collect your Power Star` : "Keep exploring " + icon("arrow")}</button>`;
           $(".feedback-continue").addEventListener("click", () => {
@@ -335,7 +335,7 @@ function showQuestion(question: Question) {
           });
         } else {
           $("#answer-feedback").innerHTML =
-            `<div class="feedback wrong-feedback"><strong>Not quite — give it another take.</strong><p>No coins lost. You’ve got this!</p></div><button class="primary-button feedback-retry">Try another answer ${icon("arrow")}</button>`;
+            `<div class="feedback wrong-feedback"><strong>Not quite — give it another take.</strong><p>-1 coin. You’ve got this!</p></div><button class="primary-button feedback-retry">Try another answer ${icon("arrow")}</button>`;
           $(".feedback-retry").addEventListener("click", () => {
             $("#answer-feedback").innerHTML = "";
             buttons.forEach((b) => {
@@ -364,7 +364,7 @@ function showMap() {
 function showGuide() {
   const stars = starCount(progress);
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">SOUVENIRS FROM YOUR ADVENTURE</span><h2 id="modal-title">The field guide.</h2><p>Every great explorer keeps a few good stories.</p></div><div class="collection-summary"><div>${icon("star")}<strong>${stars}<small>/ 3 Power Stars</small></strong></div><div>${icon("coin")}<strong>${coinCount(progress)}<small>coins collected</small></strong></div></div><div class="journal-worlds">${worlds.map((world) => `<div class="journal-world"><canvas width="176" height="120" data-thumb="${world.id}" aria-hidden="true"></canvas><div><strong>${world.name}</strong><p>${world.questions.filter((q) => progress.answered.includes(q.id)).length} of 3 scenes complete</p></div><span class="journal-star ${earnedStar(progress, world.id) ? "earned" : ""}">${icon("star")}</span></div>`).join("")}</div><div class="guide-note">${icon("book")}<p>Your progress saves automatically in this browser. Find all three Power Stars, then visit Peach’s Picture Palace for the finale.</p></div><button class="text-button" id="reset-progress">Start a new adventure</button>`,
+    `<div class="modal-heading"><span class="eyebrow">SOUVENIRS FROM YOUR ADVENTURE</span><h2 id="modal-title">The field guide.</h2><p>Every great explorer keeps a few good stories.</p></div><div class="collection-summary"><div>${icon("star")}<strong>${stars}<small>/ 3 Power Stars</small></strong></div><div>${icon("coin")}<strong>${coinCount(progress)}<small>coin score</small></strong></div></div><div class="journal-worlds">${worlds.map((world) => `<div class="journal-world"><canvas width="176" height="120" data-thumb="${world.id}" aria-hidden="true"></canvas><div><strong>${world.name}</strong><p>${world.questions.filter((q) => progress.answered.includes(q.id)).length} of 3 scenes complete</p></div><span class="journal-star ${earnedStar(progress, world.id) ? "earned" : ""}">${icon("star")}</span></div>`).join("")}</div><div class="guide-note">${icon("book")}<p>Your progress saves automatically in this browser. Find all three Power Stars, then visit Peach’s Picture Palace for the finale.</p></div><button class="text-button" id="reset-progress">Start a new adventure</button>`,
     "guide-dialog",
   );
   drawThumbnails(modalContent);
@@ -386,7 +386,7 @@ function showGuide() {
 
 function showHelp() {
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. Wrong answers are free to retry!</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
+    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. Each wrong answer costs 1 coin. You can still retry!</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
     "help-dialog",
   );
   $("#help-play").addEventListener("click", () => modal.close());
