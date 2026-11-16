@@ -163,10 +163,51 @@ test("phone layout supports touch movement, a portal, and an accessible field gu
   );
   await page.locator("#interact-button").tap();
   await expect(page.locator("#scene-label")).toHaveText("ENCHANTED CASTLE");
+  await expect(page.locator("#enemy-warning")).toBeVisible();
   await page.locator("#guide-nav").tap();
   await expect(page.locator("#modal-title")).toHaveText("The field guide.");
   await page.getByRole("button", { name: "Close dialog" }).tap();
   await expect(page.locator("#modal")).not.toBeVisible();
   expect(errors).toEqual([]);
   await context.close();
+});
+
+test("Bowser pursues Mario, costs one point per bump, and pauses during trivia and menus", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.locator("#enemy-warning")).not.toBeVisible();
+  await page.locator("#map-nav").click();
+  await page.locator('#modal [data-world="jungle"]').click();
+  await expect(page.locator("#scene-label")).toHaveText("JURASSIC JUNGLE");
+  await expect(page.locator("#enemy-warning")).toBeVisible();
+  await page.waitForTimeout(200);
+  const scoreBefore = Number(await page.locator("#coin-count").innerText());
+  await move(page, "w", 600);
+  await expect(page.locator("#toast")).toContainText("Bowser bump!", {
+    timeout: 8000,
+  });
+  await expect(page.locator("#coin-count")).toHaveText(
+    String(scoreBefore - 1).padStart(2, "0"),
+  );
+  await page.waitForTimeout(600);
+  await expect(page.locator("#coin-count")).toHaveText(
+    String(scoreBefore - 1).padStart(2, "0"),
+  );
+  await page.locator("#guide-nav").click();
+  await expect(page.locator("#modal-title")).toHaveText("The field guide.");
+  await page.waitForTimeout(2600);
+  await expect(page.locator("#coin-count")).toHaveText(
+    String(scoreBefore - 1).padStart(2, "0"),
+  );
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("screenworld-save-v1")!).enemyHits,
+    ),
+  ).toBe(1);
+  await page.reload();
+  await expect(page.locator("#coin-count")).toHaveText(
+    String(scoreBefore - 1).padStart(2, "0"),
+  );
+  await expect(page.locator("#enemy-warning")).not.toBeVisible();
 });

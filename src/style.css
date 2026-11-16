@@ -2456,3 +2456,77 @@ dialog[open] {
     display: none;
   }
 }
+
+.enemy-warning {
+  position: absolute;
+  top: 155px;
+  right: 21px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid #f4e0bb99;
+  border-radius: 7px;
+  background: #fcf1d8ec;
+  color: #895d40;
+  pointer-events: none;
+  box-shadow: 0 3px 0 #52735313;
+}
+.enemy-dot {
+  height: 7px;
+  width: 7px;
+  border-radius: 50%;
+  background: #bd6951;
+  box-shadow: 0 0 0 4px #c17c4d16;
+}
+.enemy-warning strong {
+  display: block;
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.enemy-warning small {
+  display: block;
+  font-size: 7px;
+  margin-top: 5px;
+  color: #a38662;
+}
+@media (max-width: 760px) {
+  .enemy-warning {
+    top: 156px;
+    right: 21px;
+    padding: 9px;
+    gap: 7px;
+  }
+  .enemy-warning strong {
+    font-size: 6px;
+  }
+  .enemy-warning small {
+    font-size: 6px;
+  }
+}
+@media (max-width: 560px) {
+  .enemy-warning {
+    top: 82px;
+    right: 12px;
+    max-width: 155px;
+    padding: 8px;
+  }
+  .enemy-dot {
+    width: 5px;
+    height: 5px;
+  }
+  .enemy-warning strong {
+    font-size: 5px;
+    letter-spacing: 0.7px;
+  }
+  .enemy-warning small {
+    font-size: 5px;
+    line-height: 1.5;
+  }
+}
+@media (max-width: 960px) and (max-height: 500px) and (orientation: landscape) {
+  .enemy-warning {
+    top: 79px;
+    padding: 8px;
+  }
+}

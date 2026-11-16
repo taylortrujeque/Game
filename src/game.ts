@@ -3,6 +3,7 @@ import {
   createTerrain,
   label,
   mario,
+  bowser,
   palettes,
   portal,
   questionBlock,
@@ -19,7 +20,14 @@ import {
   type Question,
   type WorldId,
 } from "./content";
-import { collectCoin, earnedStar, type Progress } from "./state";
+import { collectCoin, earnedStar, takeEnemyHit, type Progress } from "./state";
+import {
+  createGuardian,
+  guardianCanHit,
+  HIT_RECOVERY_SECONDS,
+  updateGuardian,
+  type Guardian,
+} from "./guardian";
 
 export type Interaction =
   | {
@@ -53,6 +61,7 @@ interface GameOptions {
   onNearby: (interaction: Interaction | null) => void;
   onCollect: () => void;
   onJump: () => void;
+  onEnemyHit: () => void;
 }
 
 export class Game {
@@ -62,6 +71,8 @@ export class Game {
   private ctx: CanvasRenderingContext2D;
   private terrain = new Map<WorldId, HTMLCanvasElement>();
   private player = { x: 640, y: 706, direction: 1 };
+  private guardian: Guardian | null = null;
+  private recoveryTime = 0;
   private keys = new Set<string>();
   private stick = { x: 0, y: 0 };
   private width = 0;
@@ -155,6 +166,8 @@ export class Game {
     this.player = { x: 640, y: world === "hub" ? 706 : 720, direction: 1 };
     this.jumpHeight = 0;
     this.jumpTime = 0;
+    this.guardian = createGuardian(world);
+    this.recoveryTime = 1.2;
     this.particles = [];
     this.nearby = null;
     this.lastNearbyId = "";
@@ -184,7 +197,7 @@ export class Game {
       });
   }
 
-  private blocked(x: number, y: number): boolean {
+  private blocked(x: number, y: number, jumpHeight = this.jumpHeight): boolean {
     if (x < 112 || x > MAP_W - 112 || y < 215 || y > MAP_H - 58) return true;
     if (this.world === "hub" || this.world === "castle") {
       if (x > 474 && x < 806 && y > 218 && y < 328) return true;
@@ -193,7 +206,7 @@ export class Game {
       return true;
     const pondX = this.world === "hub" ? 1070 : 185;
     if (Math.hypot((x - pondX) / 1.2, y - 621) < 78) return true;
-    if (this.jumpHeight < 14) {
+    if (jumpHeight < 14) {
       for (const [bx, by] of [
         [450, 330],
         [820, 260],
@@ -260,6 +273,7 @@ export class Game {
 
   private update(dt: number) {
     this.time += dt;
+    this.recoveryTime = Math.max(0, this.recoveryTime - dt);
     if (this.jumpTime > 0) {
       this.jumpTime += dt;
       this.jumpHeight =
@@ -300,6 +314,32 @@ export class Game {
             age: 0,
             color: "#ffe4a0",
           });
+      }
+    }
+    if (this.guardian) {
+      updateGuardian(this.guardian, this.player, this.world, dt, (x, y) =>
+        this.blocked(x, y, 0),
+      );
+      if (
+        guardianCanHit(
+          this.guardian,
+          this.player,
+          this.world,
+          this.jumpHeight,
+          this.recoveryTime,
+        )
+      ) {
+        this.recoveryTime = HIT_RECOVERY_SECONDS;
+        this.guardian.stunTime = 0.8;
+        const dx = this.player.x - this.guardian.x,
+          dy = this.player.y - this.guardian.y;
+        const length = Math.hypot(dx, dy);
+        const nx = this.player.x + (length ? dx / length : 0) * 38;
+        const ny = this.player.y + (length ? dy / length : 1) * 38;
+        if (!this.blocked(nx, this.player.y)) this.player.x = nx;
+        if (!this.blocked(this.player.x, ny)) this.player.y = ny;
+        takeEnemyHit(this.options.progress);
+        this.options.onEnemyHit();
       }
     }
     this.particles.forEach((p) => {
@@ -403,15 +443,41 @@ export class Game {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    mario(
-      ctx,
-      this.player.x,
-      this.player.y,
-      this.jumpHeight,
-      moving,
-      this.time,
-      this.player.direction,
-    );
+    const drawPlayer = () => {
+      ctx.save();
+      if (this.recoveryTime > 0 && Math.floor(this.time * 12) % 2 === 0)
+        ctx.globalAlpha = 0.5;
+      mario(
+        ctx,
+        this.player.x,
+        this.player.y,
+        this.jumpHeight,
+        moving,
+        this.time,
+        this.player.direction,
+      );
+      ctx.restore();
+    };
+    const drawGuardian = () => {
+      if (this.guardian)
+        bowser(
+          ctx,
+          this.guardian.x,
+          this.guardian.y,
+          this.time,
+          this.guardian.direction,
+          this.guardian.mode === "chase",
+          this.guardian.stunTime > 0,
+        );
+    };
+    // Feet determine draw order so Mario can walk in front of or behind Bowser.
+    if (this.guardian && this.guardian.y > this.player.y) {
+      drawPlayer();
+      drawGuardian();
+    } else {
+      drawGuardian();
+      drawPlayer();
+    }
     for (const particle of this.particles) {
       ctx.globalAlpha = Math.max(0, 1 - particle.age / 1.4);
       ctx.fillStyle = particle.color;

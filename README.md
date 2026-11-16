@@ -46,6 +46,8 @@ Find the golden question blocks in each world. The first challenge identifies th
 
 Progress saves to this browser’s `localStorage`. The field guide shows your collection and offers a confirmed reset. Storage-disabled browsers can still play, but progress is limited to the current session. Sound effects are optional and off initially.
 
+Bowser patrols all three film worlds and chases Mario when he gets close. Jump over him or steer around him. A bump costs one coin and gives Mario 2.4 seconds of recovery; Bowser also pauses briefly, so one collision cannot drain the score every frame. Question blocks and the entrance are safe areas. Opening a dialog pauses the patrol. The hub stays peaceful, and enemy penalties save separately from wrong trivia answers.
+
 ## Check
 
 ```sh
@@ -76,6 +78,7 @@ The browser runner starts Vite automatically unless a server is already using po
 - `src/state.ts` — validated saves, rewards, and completion rules.
 - `src/art.ts` — original, procedurally drawn terrain, character sprites, and world illustrations.
 - `src/game.ts` — animation, movement, camera, collision, collectibles, and interaction ranges.
+- `src/guardian.ts` — Bowser patrols, pursuit, safe areas, and jump/contact rules.
 - `src/main.ts` — game UI, touch controls, trivia dialogs, audio, and persistence.
 - `src/style.css` — responsive game shell and dialogs.
 - `tests/adventure.spec.ts` — browser playthroughs.

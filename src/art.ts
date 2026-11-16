@@ -604,6 +604,125 @@ export function mario(
   ctx.restore();
 }
 
+export function bowser(
+  ctx: Ctx,
+  x: number,
+  y: number,
+  t: number,
+  direction: number,
+  chasing: boolean,
+  stunned: boolean,
+) {
+  shadow(ctx, x, y + 4, 28, 10);
+  if (chasing) {
+    ctx.strokeStyle = "#bd664b88";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, y + 4, 36, 14, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+  ctx.scale(direction, 1);
+  const stride = stunned ? 0 : Math.sin(t * (chasing ? 11 : 7)) * 3;
+  // Tail, feet, and golden body sit beneath a chunky, spiked shell.
+  ctx.fillStyle = "#b5823b";
+  ctx.beginPath();
+  ctx.moveTo(-23, -19);
+  ctx.lineTo(-44, -5);
+  ctx.lineTo(-18, -3);
+  ctx.closePath();
+  ctx.fill();
+  rounded(ctx, -22, -12 + stride, 20, 15, 4, "#c18b43");
+  rounded(ctx, 9, -11 - stride, 22, 15, 4, "#d3a34f");
+  ctx.fillStyle = "#f0dfb4";
+  for (const fx of [-20, -13, 14, 21])
+    ctx.fillRect(fx, (fx < 0 ? stride : -stride) - 1, 4, 5);
+  rounded(ctx, -22, -42, 45, 37, 12, "#b5833e");
+  rounded(ctx, 2, -34, 28, 29, 9, "#e1bd79");
+  ctx.fillStyle = "#ba975e";
+  for (const fy of [-25, -17]) ctx.fillRect(11, fy, 16, 2);
+  rounded(ctx, -27, -50, 43, 39, 12, "#e7d4a2");
+  rounded(ctx, -24, -49, 36, 33, 10, "#3f6f43");
+  rounded(ctx, -21, -47, 27, 26, 7, "#62934f");
+  ctx.strokeStyle = "#3f7043";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-8, -47);
+  ctx.lineTo(-14, -35);
+  ctx.lineTo(-6, -22);
+  ctx.moveTo(-23, -34);
+  ctx.lineTo(-14, -35);
+  ctx.lineTo(8, -32);
+  ctx.stroke();
+  ctx.fillStyle = "#f8e7bf";
+  for (const [sx, sy] of [
+    [-18, -44],
+    [-4, -43],
+    [-22, -29],
+    [-8, -28],
+  ]) {
+    ctx.beginPath();
+    ctx.moveTo(sx - 5, sy + 4);
+    ctx.lineTo(sx, sy - 9);
+    ctx.lineTo(sx + 6, sy + 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // A red mane, two horns, and a toothy snout make the silhouette familiar.
+  ctx.fillStyle = "#b7513d";
+  ctx.beginPath();
+  ctx.moveTo(4, -38);
+  ctx.lineTo(6, -54);
+  ctx.lineTo(14, -48);
+  ctx.lineTo(17, -58);
+  ctx.lineTo(24, -47);
+  ctx.lineTo(29, -52);
+  ctx.lineTo(35, -36);
+  ctx.closePath();
+  ctx.fill();
+  rounded(ctx, 12, -43, 29, 28, 9, "#d4a04a");
+  ctx.fillStyle = "#f5e4ba";
+  ctx.beginPath();
+  ctx.moveTo(15, -40);
+  ctx.lineTo(18, -54);
+  ctx.lineTo(24, -41);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(32, -38);
+  ctx.lineTo(44, -46);
+  ctx.lineTo(40, -32);
+  ctx.closePath();
+  ctx.fill();
+  rounded(ctx, 29, -27, 20, 16, 5, "#e5c887");
+  ctx.fillStyle = "#f7efcf";
+  ctx.fillRect(29, -36, 9, 9);
+  ctx.fillStyle = stunned ? "#936d42" : "#343d30";
+  ctx.fillRect(35, -34, 3, 6);
+  ctx.fillStyle = "#a94835";
+  ctx.fillRect(27, -39, 13, 4);
+  ctx.fillStyle = "#9c7846";
+  ctx.fillRect(43, -23, 3, 3);
+  ctx.fillRect(37, -15, 10, 2);
+  ctx.fillStyle = "#fff0cd";
+  ctx.fillRect(38, -15, 3, 5);
+  rounded(ctx, 7, -17 - stride, 18, 13, 5, "#d3a04a");
+  ctx.fillStyle = "#444a38";
+  ctx.fillRect(12, -18 - stride, 6, 14);
+  ctx.fillStyle = "#e6d3a1";
+  ctx.fillRect(13, -15 - stride, 4, 3);
+  ctx.restore();
+  label(
+    ctx,
+    x,
+    y + 23,
+    stunned ? "BOWSER · STUNNED" : "BOWSER",
+    "#ffedbf",
+    chasing ? "#9b5542ee" : "#596247e6",
+  );
+}
+
 export function coin(ctx: Ctx, x: number, y: number, t: number, index: number) {
   const bob = Math.sin(t * 3 + index * 0.6) * 3;
   shadow(ctx, x, y + 3, 8, 3);

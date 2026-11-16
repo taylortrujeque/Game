@@ -8,6 +8,7 @@ import {
   freshProgress,
   parseProgress,
   starCount,
+  takeEnemyHit,
 } from "./state";
 
 describe("adventure progress", () => {
@@ -80,6 +81,7 @@ describe("adventure progress", () => {
       answered: ["jungle-1"],
       collected: ["hub-coin-0"],
       wrongAnswers: 0,
+      enemyHits: 0,
       sound: true,
     });
     for (const wrongAnswers of [
@@ -102,5 +104,18 @@ describe("adventure progress", () => {
         answerQuestion(progress, question.id, question.answer);
     expect(starCount(progress)).toBe(3);
     expect(coinCount(progress)).toBe(45);
+  });
+  it("saves enemy penalties separately from wrong answers and resets them with a new adventure", () => {
+    const progress = freshProgress();
+    collectCoin(progress, "hub-coin-0");
+    takeEnemyHit(progress);
+    expect(coinCount(progress)).toBe(0);
+    expect(progress.wrongAnswers).toBe(0);
+    expect(parseProgress(JSON.stringify(progress)).enemyHits).toBe(1);
+    expect(parseProgress(JSON.stringify({ version: 1 })).enemyHits).toBe(0);
+    expect(
+      parseProgress(JSON.stringify({ version: 1, enemyHits: -4 })).enemyHits,
+    ).toBe(0);
+    expect(freshProgress().enemyHits).toBe(0);
   });
 });

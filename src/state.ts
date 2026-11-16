@@ -11,6 +11,7 @@ export interface Progress {
   answered: string[];
   collected: string[];
   wrongAnswers: number;
+  enemyHits: number;
   sound: boolean;
 }
 export const freshProgress = (): Progress => ({
@@ -18,6 +19,7 @@ export const freshProgress = (): Progress => ({
   answered: [],
   collected: [],
   wrongAnswers: 0,
+  enemyHits: 0,
   sound: false,
 });
 
@@ -44,6 +46,10 @@ export function parseProgress(raw: string | null): Progress {
         Number.isSafeInteger(value.wrongAnswers) && value.wrongAnswers >= 0
           ? value.wrongAnswers
           : 0,
+      enemyHits:
+        Number.isSafeInteger(value.enemyHits) && value.enemyHits >= 0
+          ? value.enemyHits
+          : 0,
       sound: value.sound === true,
     };
   } catch {
@@ -65,7 +71,8 @@ export function coinCount(progress: Progress): number {
   return (
     progress.collected.length +
     progress.answered.length * 5 -
-    progress.wrongAnswers
+    progress.wrongAnswers -
+    progress.enemyHits
   );
 }
 export function answerQuestion(
@@ -95,4 +102,8 @@ export function collectCoin(progress: Progress, id: string): boolean {
   if (!allCoinIds.has(id) || progress.collected.includes(id)) return false;
   progress.collected.push(id);
   return true;
+}
+
+export function takeEnemyHit(progress: Progress): void {
+  progress.enemyHits += 1;
 }
