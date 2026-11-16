@@ -23,9 +23,9 @@ describe("adventure progress", () => {
     answerQuestion(progress, questions[2].id, questions[2].answer);
     expect(earnedStar(progress, "jungle")).toBe(true);
     expect(starCount(progress)).toBe(1);
-    expect(coinCount(progress)).toBe(15);
+    expect(coinCount(progress)).toBe(18);
     answerQuestion(progress, questions[2].id, questions[2].answer);
-    expect(coinCount(progress)).toBe(15);
+    expect(coinCount(progress)).toBe(18);
   });
   it("subtracts one point for each wrong answer, including retries and at zero", () => {
     const progress = freshProgress();
@@ -99,6 +99,11 @@ describe("adventure progress", () => {
       enemyHits: 0,
       lives: 3,
       sound: true,
+      extras: [],
+      bonusCoins: 0,
+      streak: 0,
+      bestStreak: 0,
+      bossDefeated: false,
     });
     for (const wrongAnswers of [
       -1,
@@ -119,7 +124,7 @@ describe("adventure progress", () => {
       for (const question of world.questions)
         answerQuestion(progress, question.id, question.answer);
     expect(starCount(progress)).toBe(3);
-    expect(coinCount(progress)).toBe(45);
+    expect(coinCount(progress)).toBe(71);
   });
   it("saves enemy penalties separately from wrong answers and resets them with a new adventure", () => {
     const progress = freshProgress();

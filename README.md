@@ -1,6 +1,6 @@
 # Screenworld
 
-A mobile-friendly, top-down Mario and movie-trivia adventure. This first playable prototype includes Peach’s Picture Palace, three explorable film worlds, collectible coins, jumping, nine trivia challenges, three Power Stars, and a palace finale.
+A mobile-friendly, top-down Mario and movie-trivia adventure. Explore three film worlds, dash through hazards, smash crates, collect power-ups and hidden reels, build trivia streaks, and unlock a playable Bowser finale. Personal records and end-of-run ranks give each replay a new goal.
 
 ## Develop
 
@@ -38,19 +38,32 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:pages
 | -------------------------------------- | ------------------------- | ------------------------- |
 | Move                                   | WASD or arrow keys        | Drag the joystick         |
 | Jump over low bushes                   | Space                     | Jump button               |
+| Dash, evade danger, and smash crates   | Shift                     | Lightning button          |
 | Enter a portal, talk, or answer trivia | E when nearby             | A button when nearby      |
 | Choose a world                         | World map or a world card | World map or a world card |
 | Close a dialog                         | Escape or close button    | Close button              |
 
-Find the golden question blocks in each world. The first challenge identifies the film; the next two test your knowledge. A correct answer gives five coins. Each wrong answer subtracts one coin from your score, including on retries; the score can drop below zero. Solve all three challenges to earn that world’s Power Star. Collect all three stars and visit the palace entrance for the finale.
+Find the golden question blocks in each world. The first challenge identifies the film; the next two test your knowledge. A correct answer gives five coins. Answer within two seconds for two extra coins. Consecutive correct answers build a streak that adds up to four more coins per answer. Wrong answers, timeouts, and damage break the streak; wrong answers and timeouts subtract one coin. Solve all three challenges to earn a Power Star. Collect all three stars to unlock **The Final Cut**, a real-time Bowser showdown.
 
 Each question attempt has a visible five-second countdown. It stops when you answer. Running out of time costs one coin, leaves the question unsolved, and lets you retry with a fresh five seconds. Wrong answers and timeouts do not cost a life. Reading feedback does not use more time or deduct more points. Closing a question cancels its countdown. The deadline uses elapsed time, so a throttled or background tab cannot submit an answer after the limit.
 
 Progress saves to this browser’s `localStorage`. The field guide shows your collection and offers a confirmed reset. Storage-disabled browsers can still play, but progress is limited to the current session. Sound effects are optional and off initially.
 
-Mario starts with three lives, shown as hearts in the game HUD. Bowser patrols all three film worlds and chases Mario when he gets close. Jump over him or steer around him. A bump costs one life and one coin. With lives remaining, Mario returns to that world’s entrance with his coins, answered questions, and Power Stars retained, plus 2.4 seconds of recovery. Question blocks and the entrance are safe areas. Opening a dialog pauses the patrol, and the hub stays peaceful.
+Mario starts with three lives, shown as hearts. Bowser patrols the film worlds, which also have rolling boulders, telegraphed laser beams, or sweeping magic. Jump or dash past danger. Jumping onto Bowser, dashing into him, or touching him with a Super Star stuns him; the first bonk in each world earns three coins. Contact without protection costs one life and one coin and returns Mario to the entrance. Question blocks and entrances are safe from Bowser, and the hub stays peaceful.
 
-Losing the third life shows Game Over and stops play. **Start again** resets coins, answered trivia, Power Stars, and penalties, restores three lives, and returns Mario to Mushroom Meadow. Sound preferences are preserved. Lives and Game Over save across reloads; switching worlds does not refill them. Older saves keep their progress and receive three lives when first loaded. Wrong trivia answers still cost only one coin, not a life.
+| Discovery        | Reward                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| Super Star       | Eight seconds of invincibility; run into Bowser to stun him.                             |
+| Wooden crate     | Jump or dash into it for three coins and a ten-second coin magnet.                       |
+| Mushroom         | Restores one heart, or gives five coins if hearts are full.                              |
+| Hidden film reel | Two coins; find all three in one world for ten more coins and a heart if needed.         |
+| Five-coin chain  | Collect coins less than 1.7 seconds apart for a two-coin bonus at each multiple of five. |
+
+Pickups and bonk rewards are available once per adventure and survive reloads. Temporary powers and the dash cooldown pause in menus; temporary powers expire on a browser reload. A fresh adventure resets them. Dash lasts 0.24 seconds and recharges in 1.3 seconds.
+
+The finale entrance restores three hearts. Dodge Bowser’s fireballs, then jump onto him while he is tired. Three hits win. Boss damage is retained if Mario loses a life during the fight. The first victory adds fifty coins; replaying the fight cannot farm that reward. The results screen shows a rank, reel collection, best trivia streak, and personal best. Personal best scores survive a new adventure.
+
+Losing the third life shows Game Over and stops play. **Start again** resets coins, answered trivia, Power Stars, pickups, and penalties, restores three lives, and returns Mario to Mushroom Meadow. Sound preferences and personal records are preserved. Lives and Game Over save across reloads; switching between regular worlds does not refill them. The finale entrance is the heart-refilling checkpoint. Older saves keep their progress and receive three lives when first loaded. Wrong trivia answers still cost only one coin, not a life.
 
 ## Check
 
@@ -61,7 +74,7 @@ npm run build
 
 The unit tests cover correct and incorrect answers, star completion, duplicate rewards, and save validation. The build includes strict TypeScript checking.
 
-Browser tests exercise keyboard portal entry, all nine trivia challenges, retrying a wrong answer, all three stars, reload persistence, the palace finale, and native touch movement at a phone viewport:
+Browser tests exercise keyboard and touch controls, all nine timed trivia challenges, penalties, lives and Game Over, power-up collection, dash-bonks, crate smashing, healing, saved reels, the locked finale, a complete three-hit boss victory, and personal records:
 
 ```sh
 npx playwright install chromium
@@ -84,6 +97,9 @@ The browser runner starts Vite automatically unless a server is already using po
 - `src/art.ts` — original, procedurally drawn terrain, character sprites, and world illustrations.
 - `src/game.ts` — animation, movement, camera, collision, collectibles, and interaction ranges.
 - `src/guardian.ts` — Bowser patrols, pursuit, safe areas, and jump/contact rules.
+- `src/arcade.ts` — power-up locations, hidden reels, and themed hazard rules.
+- `src/arcade-art.ts` — pickup and hazard artwork and the finale arena.
+- `src/boss.ts` — fireball patterns, vulnerable phases, and jump attacks.
 - `src/main.ts` — game UI, touch controls, trivia dialogs, audio, and persistence.
 - `src/style.css` — responsive game shell and dialogs.
 - `tests/adventure.spec.ts` — browser playthroughs.

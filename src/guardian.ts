@@ -20,7 +20,7 @@ const patrol: Point[] = [
 export const HIT_RECOVERY_SECONDS = 2.4;
 
 export function createGuardian(world: WorldId): Guardian | null {
-  if (world === "hub") return null;
+  if (world === "hub" || world === "finale") return null;
   const start = { jungle: 0, galaxy: 1, castle: 2 }[world];
   return {
     ...patrol[start],
@@ -32,7 +32,7 @@ export function createGuardian(world: WorldId): Guardian | null {
 }
 
 export function isSafeFromGuardian(player: Point, world: WorldId): boolean {
-  if (world === "hub") return true;
+  if (world === "hub" || world === "finale") return true;
   // Players can read trivia and use the entrance without being cornered.
   return (
     Math.hypot(player.x - 640, player.y - 740) < 115 ||

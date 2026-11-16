@@ -4,6 +4,7 @@ import { QuestionCountdown, QUESTION_TIME_LIMIT_MS } from "./countdown";
 import { thumbnail } from "./art";
 import {
   worlds,
+  isFilmWorld,
   worldById,
   type FilmWorldId,
   type Question,
@@ -19,6 +20,7 @@ import {
   parseProgress,
   SAVE_KEY,
   starCount,
+  reelCount,
 } from "./state";
 
 const icons: Record<string, string> = {
@@ -35,6 +37,7 @@ const icons: Record<string, string> = {
   jump: '<path d="M12 18V4m-5 5 5-5 5 5M5 19v3h14v-3"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   coin: '<ellipse cx="12" cy="12" rx="8" ry="10"/><path d="M12 7v10"/>',
+  bolt: '<path d="m13 2-9 12h7l-1 8 10-13h-7l0-7Z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   heart:
     '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',
@@ -65,23 +68,25 @@ app.innerHTML = `
   </header>
   <main>
     <section class="heading-row" aria-labelledby="page-title">
-      <div><div class="eyebrow" id="world-eyebrow">WELCOME TO THE MUSHROOM KINGDOM</div><h1 id="page-title">A whole new world of <span>movie magic.</span></h1><p id="page-subtitle">Little hero. Big screen. Let’s-a go on an adventure.</p></div>
+      <div><div class="eyebrow" id="world-eyebrow">WELCOME TO THE MUSHROOM KINGDOM</div><h1 id="page-title">A whole new world of <span>movie magic.</span></h1><p id="page-subtitle">Jump. Dash. Discover. Make every scene a blockbuster.</p></div>
       <button class="adventure-progress" id="progress-button" aria-label="View Power Star collection"><span class="progress-star">${icon("star")}</span><span><small>YOUR ADVENTURE</small><strong><span id="star-progress">0 of 3</span> <span>Power Stars</span></strong></span><span class="progress-dots" aria-hidden="true"><i></i><i></i><i></i></span></button>
     </section>
 
     <section class="game-frame" aria-label="Playable adventure">
       <div class="game-toolbar"><div class="live-world"><span class="live-dot"></span><span id="scene-label">PEACH’S PICTURE PALACE</span><span class="world-number" id="world-number">WORLD 00</span></div><div class="game-hud"><span class="coin-hud">${icon("coin")}<b id="coin-count">00</b></span><span class="hud-divider"></span><span class="lives-hud" id="lives-hud" role="img" aria-label="3 of 3 lives remaining"></span><span class="hud-divider"></span><span class="star-hud">${icon("star")}<b id="star-count">0</b><span>/ 3</span></span><button id="help-button" class="icon-button" aria-label="How to play">${icon("help")}</button></div></div>
+      <div class="arcade-strip"><span id="reel-status">FILM REELS 0 / 9</span><span id="streak-status">STREAK ×0</span><span id="power-status">DASH READY</span></div>
       <div class="game-stage" id="game-stage">
-        <canvas id="game" tabindex="0" aria-label="Screenworld game. Use arrow keys or WASD to move, Space to jump over Bowser, and E to interact. On touch screens use the joystick and action buttons."></canvas>
+        <div class="boss-hud" id="boss-hud" hidden><small>THE FINAL CUT · BOWSER</small><div id="boss-health" role="meter" aria-label="Bowser health" aria-valuemin="0" aria-valuemax="3" aria-valuenow="3">● ● ●</div><strong id="boss-phase">Get ready!</strong></div>
+        <canvas id="game" tabindex="0" aria-label="Screenworld game. Use arrow keys or WASD to move, Space to jump, Shift to dash, and E to interact. Jump onto crates to smash them. On touch screens use the joystick and action buttons."></canvas>
         <div class="location-card"><span class="location-icon">${icon("flag")}</span><div><small id="location-type">THE HUB</small><strong id="location-name">Mushroom Meadow</strong></div></div>
         <div class="quest-card" id="quest-card"><span class="quest-icon">${icon("star")}</span><div><small>YOUR NEXT SCENE</small><strong id="quest-title">Find your first film world</strong><p id="quest-description">Step into a painting. Every great story starts with a little curiosity.</p></div></div>
         <button class="back-hub" id="back-hub" hidden>${icon("back")} Back to hub</button>
-        <div class="enemy-warning" id="enemy-warning" hidden><span class="enemy-dot"></span><span><strong>BOWSER PATROL</strong><small>Jump or steer clear · Bump: -1 life</small></span></div>
+        <div class="enemy-warning" id="enemy-warning" hidden><span class="enemy-dot"></span><span><strong>BOWSER PATROL</strong><small>Jump / dash to bonk · Bump: -1 life</small></span></div>
         <div class="scene-chapter" id="scene-chapter"><span>EXPLORE. DISCOVER. PLAY.</span><strong>Adventure is<br>just a warp away.</strong></div>
         <div class="game-controls">
           <div class="joystick-area"><button id="joystick" class="joystick" aria-label="Movement joystick. Drag in a direction to move Mario."><span class="joystick-cross"></span><span class="joystick-knob"></span></button><span class="control-caption">MOVE <kbd>W A S D</kbd></span></div>
           <div class="interaction-prompt" id="interaction-prompt" hidden><kbd>E</kbd><span id="interaction-label"></span></div>
-          <div class="action-controls"><div><button class="jump-button" id="jump-button" aria-label="Jump">${icon("jump")}</button><span class="control-caption">JUMP <kbd>SPACE</kbd></span></div><div><button class="interact-button" id="interact-button" aria-label="Interact with nearby object" disabled><span>A</span></button><span class="control-caption">INTERACT <kbd>E</kbd></span></div></div>
+          <div class="action-controls"><div><button class="dash-button" id="dash-button" aria-label="Dash">${icon("bolt")}</button><span class="control-caption">DASH <kbd>SHIFT</kbd></span></div><div><button class="jump-button" id="jump-button" aria-label="Jump">${icon("jump")}</button><span class="control-caption">JUMP <kbd>SPACE</kbd></span></div><div><button class="interact-button" id="interact-button" aria-label="Interact with nearby object" disabled><span>A</span></button><span class="control-caption">INTERACT <kbd>E</kbd></span></div></div>
         </div>
         <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
         <div id="world-transition" class="world-transition" aria-hidden="true"></div>
@@ -90,7 +95,8 @@ app.innerHTML = `
     </section>
 
     <section class="worlds-section" aria-labelledby="worlds-heading"><div class="section-heading"><div><span class="eyebrow">A TICKET TO SOMEWHERE NEW</span><h2 id="worlds-heading">Pick your next picture.</h2></div><span class="worlds-meta">3 worlds. Countless “I know this one!” moments.</span></div><div id="world-cards" class="world-cards"></div></section>
-    <footer class="site-footer"><span>Made for the love of games <span class="footer-spark">✦</span> and the magic of movies.</span><span>A little work in progress. A big adventure ahead.</span></footer>
+    <button class="finale-card" id="finale-card" disabled><span class="finale-symbol">${icon("flag")}</span><span><small>THE FINAL CUT</small><strong id="finale-card-title">Bowser’s premiere awaits.</strong><span id="finale-card-note">Collect all 3 Power Stars to unlock the showdown.</span></span><span class="finale-card-arrow">${icon("arrow")}</span></button>
+    <footer class="site-footer"><span>Made for the love of games <span class="footer-spark">✦</span> and the magic of movies.</span><span>One more reel. One more run. One more perfect take.</span></footer>
   </main>
   <dialog id="modal" aria-labelledby="modal-title"><button class="modal-close icon-button" aria-label="Close dialog">${icon("close")}</button><div id="modal-content"></div></dialog>
 `;
@@ -103,6 +109,21 @@ let currentWorld: WorldId = "hub";
 let audioContext: AudioContext | null = null;
 let toastTimer: ReturnType<typeof setTimeout>;
 let transitioning = false;
+let bestScore = 0;
+try {
+  const stored = Number(localStorage.getItem("screenworld-best-score"));
+  bestScore = Number.isSafeInteger(stored) && stored > 0 ? stored : 0;
+} catch {
+  /* Session play remains available. */
+}
+function rememberBest() {
+  bestScore = Math.max(bestScore, coinCount(progress));
+  try {
+    localStorage.setItem("screenworld-best-score", String(bestScore));
+  } catch {
+    /* Keep the session record. */
+  }
+}
 let activeQuestionTimer: QuestionCountdown | null = null;
 
 function stopQuestionTimer() {
@@ -188,11 +209,17 @@ function worldCard(id: FilmWorldId, compact = false) {
   return `<button class="world-card ${compact ? "compact" : ""} ${completed ? "completed" : ""}" data-world="${id}" style="--world-color:${world.color};--world-dark:${world.dark}">
     <div class="world-art"><canvas width="440" height="260" data-thumb="${id}" aria-hidden="true"></canvas><span class="genre-tag">${world.genre}</span>${completed ? `<span class="complete-badge">${icon("star")} STAR EARNED</span>` : ""}</div>
     <div class="world-card-info"><span class="world-card-number">${world.number}</span><div><h3>${world.name}</h3><p>${world.subtitle}</p></div><span class="card-arrow">${icon(currentWorld === id ? "flag" : "arrow")}</span></div>
-    <div class="world-card-status"><span>${completed ? "A picture-perfect performance" : count ? `${count} of 3 scenes complete` : "3 trivia challenges · 1 Power Star"}</span><span class="mini-stars">${[0, 1, 2].map((i) => `<i class="${i < count ? "filled" : ""}"></i>`).join("")}</span></div>
+    <div class="world-card-status"><span>${completed ? "A picture-perfect performance" : count ? `${count} of 3 scenes complete` : `3 scenes · ${reelCount(progress, id)} / 3 film reels`}</span><span class="mini-stars">${[0, 1, 2].map((i) => `<i class="${i < count ? "filled" : ""}"></i>`).join("")}</span></div>
   </button>`;
 }
 
 function bindWorldCards(root: ParentNode) {
+  root.querySelectorAll<HTMLButtonElement>("[data-finale]").forEach((button) =>
+    button.addEventListener("click", () => {
+      modal.close();
+      enterWorld("finale");
+    }),
+  );
   drawThumbnails(root);
   root.querySelectorAll<HTMLButtonElement>("[data-world]").forEach((button) =>
     button.addEventListener("click", () => {
@@ -204,6 +231,23 @@ function bindWorldCards(root: ParentNode) {
 
 function updateUI() {
   const stars = starCount(progress);
+  $("#reel-status").textContent = isFilmWorld(currentWorld)
+    ? `FILM REELS ${reelCount(progress, currentWorld)} / 3`
+    : currentWorld === "finale"
+      ? "FINAL SHOWDOWN"
+      : `FILM REELS ${reelCount(progress)} / 9`;
+  $("#streak-status").textContent = `STREAK ×${progress.streak}`;
+  $<HTMLButtonElement>("#finale-card").disabled = stars < 3;
+  $("#finale-card-title").textContent = progress.bossDefeated
+    ? "Take an encore with Bowser."
+    : stars === 3
+      ? "The final showdown is unlocked!"
+      : "Bowser’s premiere awaits.";
+  $("#finale-card-note").textContent =
+    stars === 3
+      ? "Dodge the fireballs. Jump when he’s tired. Take the crown."
+      : `${stars} / 3 Power Stars · Your biggest scene is still to come.`;
+  $("#boss-hud").hidden = currentWorld !== "finale";
   $("#lives-hud").innerHTML = Array.from(
     { length: MAX_LIVES },
     (_, i) =>
@@ -235,7 +279,7 @@ function updateUI() {
     $("#page-title").innerHTML =
       "A whole new world of <span>movie magic.</span>";
     $("#page-subtitle").textContent =
-      "Little hero. Big screen. Let’s-a go on an adventure.";
+      "Jump. Dash. Discover. Make every scene a blockbuster.";
     $("#scene-label").textContent = "PEACH’S PICTURE PALACE";
     $("#world-number").textContent = "WORLD 00";
     $("#location-type").textContent = "THE HUB";
@@ -248,8 +292,15 @@ function updateUI() {
           : "Find your first film world";
     $("#quest-description").textContent =
       stars === 3
-        ? "You found all 3 Power Stars! Visit the palace to celebrate your adventure."
+        ? "All 3 stars are yours! Visit the palace or enter The Final Cut to face Bowser."
         : "Step into a painting. Every great story starts with a little curiosity.";
+  } else if (currentWorld === "finale") {
+    $("#world-eyebrow").textContent = "THE FINAL CUT · BOSS SHOWDOWN";
+    $("#page-title").innerHTML = "One last <span>show-stopping jump.</span>";
+    $("#page-subtitle").textContent =
+      "Dodge the fireballs. When Bowser gets tired, jump onto him. Three hits take the crown.";
+    $("#scene-label").textContent = "BOWSER’S PREMIERE";
+    $("#world-number").textContent = "FINAL BOSS";
   } else {
     const world = worldById(currentWorld);
     const count = world.questions.filter((question) =>
@@ -268,10 +319,10 @@ function updateUI() {
     $("#quest-description").textContent =
       count === 3
         ? "A Power Star is yours. Return to the hub and discover your next picture."
-        : "Find the golden ? blocks. Jump over Bowser or steer around him!";
+        : "Find the ? blocks. Smash crates, hunt reels, and dash past danger!";
   }
   $("#back-hub").hidden = currentWorld === "hub";
-  $("#enemy-warning").hidden = currentWorld === "hub";
+  $("#enemy-warning").hidden = !isFilmWorld(currentWorld);
   $("#scene-chapter").hidden = currentWorld !== "hub";
   $("#game-stage").dataset.world = currentWorld;
   $("#world-cards").innerHTML = worlds
@@ -299,6 +350,10 @@ function enterWorld(world: WorldId) {
     showGameOver();
     return;
   }
+  if (world === "finale" && starCount(progress) !== 3) {
+    toast("Collect all three Power Stars to unlock Bowser’s premiere.");
+    return;
+  }
   if (transitioning) return;
   transitioning = true;
   game.setPaused(true);
@@ -306,6 +361,10 @@ function enterWorld(world: WorldId) {
   sound("warp");
   setTimeout(() => {
     currentWorld = world;
+    if (world === "finale") {
+      progress.lives = MAX_LIVES;
+      save();
+    }
     game.enter(world);
     updateUI();
     $("#world-transition").classList.remove("visible");
@@ -314,10 +373,11 @@ function enterWorld(world: WorldId) {
     toast(
       world === "hub"
         ? "Back in the Mushroom Kingdom. Your next adventure awaits!"
-        : `${worldById(world).name} · Find the ? blocks. Bowser is roaming — jump or steer clear!`,
+        : world === "finale"
+          ? "Final showdown! Three fresh hearts. Dodge the fire, then JUMP when Bowser is tired!"
+          : `${worldById(world).name} · Reels, power-ups, and hidden loot await. Shift / ⚡ to dash!`,
     );
-    if (window.innerWidth < 700)
-      $(".game-frame").scrollIntoView({ behavior: "smooth", block: "start" });
+    $(".game-frame").scrollIntoView({ behavior: "smooth", block: "start" });
     $("#game").focus({ preventScroll: true });
   }, 220);
 }
@@ -329,7 +389,7 @@ function showQuestion(question: Question) {
   ).length;
   openDialog(
     `<div class="quiz-art"><canvas width="660" height="240" data-thumb="${world.id}" aria-hidden="true"></canvas><span class="modal-overline">WORLD ${world.number} · ${world.name.toUpperCase()}</span><span class="quiz-number">SCENE ${world.questions.indexOf(question) + 1} / 3</span><span class="quiz-block">?</span></div>
-    <div class="quiz-body"><div class="quiz-heading-row"><div><div class="eyebrow">LIGHTS. CAMERA. YOUR ANSWER.</div><h2 id="modal-title">${question.title}</h2></div><div class="quiz-timer" id="quiz-timer" role="timer" aria-live="off" aria-label="5 seconds remaining"><span>${icon("clock")}<strong id="quiz-seconds">5s</strong></span><small id="quiz-timer-caption">TIME LEFT</small></div></div><div class="quiz-time-track" aria-hidden="true"><span id="quiz-time-bar"></span></div><p class="question-text">${question.prompt}</p><div class="answer-options">${question.options.map((option, index) => `<button class="answer-option" data-answer="${index}"><span class="answer-letter">${String.fromCharCode(65 + index)}</span><span>${option}</span><span class="answer-result"></span></button>`).join("")}</div><div id="answer-feedback" role="status" aria-live="polite"></div><div class="quiz-bottom"><span>${icon("coin")} Correct: +5 · Wrong / timeout: -1 coin</span><span>${count} / 3 scenes complete</span></div></div>`,
+    <div class="quiz-body"><div class="quiz-heading-row"><div><div class="eyebrow">LIGHTS. CAMERA. YOUR ANSWER.</div><h2 id="modal-title">${question.title}</h2></div><div class="quiz-timer" id="quiz-timer" role="timer" aria-live="off" aria-label="5 seconds remaining"><span>${icon("clock")}<strong id="quiz-seconds">5s</strong></span><small id="quiz-timer-caption">TIME LEFT</small></div></div><div class="quiz-time-track" aria-hidden="true"><span id="quiz-time-bar"></span></div><p class="question-text">${question.prompt}</p><div class="answer-options">${question.options.map((option, index) => `<button class="answer-option" data-answer="${index}"><span class="answer-letter">${String.fromCharCode(65 + index)}</span><span>${option}</span><span class="answer-result"></span></button>`).join("")}</div><div id="answer-feedback" role="status" aria-live="polite"></div><div class="quiz-bottom"><span>${icon("coin")} Correct +5 · Fast +2 · Streak bonus</span><span>${count} / 3 scenes complete</span></div></div>`,
     "quiz-dialog",
   );
   drawThumbnails(modalContent);
@@ -365,11 +425,13 @@ function showQuestion(question: Question) {
     countdown.start();
   }
 
-  function finishQuestion(option: number | null) {
+  function finishQuestion(option: number | null, remainingMs = 0) {
     if (settled || !modal.open || !modalContent.contains(timerElement)) return;
     settled = true;
     const timedOut = option === null;
-    const correct = answerQuestion(progress, question.id, option);
+    const before = coinCount(progress);
+    const correct = answerQuestion(progress, question.id, option, remainingMs);
+    const reward = coinCount(progress) - before;
     buttons.forEach((button) => {
       button.disabled = true;
     });
@@ -389,7 +451,7 @@ function showQuestion(question: Question) {
     if (correct) {
       const complete = earnedStar(progress, world.id);
       $("#answer-feedback").innerHTML =
-        `<div class="feedback correct-feedback"><strong>${complete ? "Power Star earned! A stellar performance." : "That’s the one! +5 coins"}</strong><p>${question.fact}</p></div><button class="primary-button feedback-continue">${complete ? `${icon("star")} Collect your Power Star` : "Keep exploring " + icon("arrow")}</button>`;
+        `<div class="feedback correct-feedback"><strong>${complete ? "Power Star earned! A stellar performance." : `Nice take! +${reward} coins · ${progress.streak} in a row`}</strong><p>${question.fact}</p></div><button class="primary-button feedback-continue">${complete ? `${icon("star")} Collect your Power Star` : "Keep exploring " + icon("arrow")}</button>`;
       $(".feedback-continue").addEventListener("click", () => {
         modal.close();
         game.celebrate();
@@ -415,7 +477,8 @@ function showQuestion(question: Question) {
 
   buttons.forEach((button, index) =>
     button.addEventListener("click", () => {
-      if (countdown.trySubmit()) finishQuestion(index);
+      const remaining = countdown.remainingMs;
+      if (countdown.trySubmit()) finishQuestion(index, remaining);
     }),
   );
   startAttempt();
@@ -423,7 +486,7 @@ function showQuestion(question: Question) {
 
 function showMap() {
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">THREE TICKETS. THREE BIG ADVENTURES.</span><h2 id="modal-title">Where to next?</h2><p>Pick a painting and jump into a different kind of story.</p></div><div class="map-worlds">${worlds.map((world) => worldCard(world.id, true)).join("")}</div><button class="text-button map-home">${icon("back")} Return to Mushroom Meadow</button>`,
+    `<div class="modal-heading"><span class="eyebrow">THREE TICKETS. THREE BIG ADVENTURES.</span><h2 id="modal-title">Where to next?</h2><p>Pick a painting and jump into a different kind of story.</p></div><div class="map-worlds">${worlds.map((world) => worldCard(world.id, true)).join("")}</div><button class="map-finale" data-finale ${starCount(progress) < 3 ? "disabled" : ""}>${icon("flag")} ${starCount(progress) === 3 ? "Enter The Final Cut · Bowser showdown" : "The Final Cut · Collect all 3 Power Stars"} ${icon("arrow")}</button><button class="text-button map-home">${icon("back")} Return to Mushroom Meadow</button>`,
     "map-dialog",
   );
   bindWorldCards(modalContent);
@@ -436,7 +499,7 @@ function showMap() {
 function showGuide() {
   const stars = starCount(progress);
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">SOUVENIRS FROM YOUR ADVENTURE</span><h2 id="modal-title">The field guide.</h2><p>Every great explorer keeps a few good stories.</p></div><div class="collection-summary"><div>${icon("star")}<strong>${stars}<small>/ 3 Power Stars</small></strong></div><div>${icon("coin")}<strong>${coinCount(progress)}<small>coin score</small></strong></div></div><div class="journal-worlds">${worlds.map((world) => `<div class="journal-world"><canvas width="176" height="120" data-thumb="${world.id}" aria-hidden="true"></canvas><div><strong>${world.name}</strong><p>${world.questions.filter((q) => progress.answered.includes(q.id)).length} of 3 scenes complete</p></div><span class="journal-star ${earnedStar(progress, world.id) ? "earned" : ""}">${icon("star")}</span></div>`).join("")}</div><div class="guide-note">${icon("book")}<p>Your progress saves automatically in this browser. Find all three Power Stars, then visit Peach’s Picture Palace for the finale.</p></div><button class="text-button" id="reset-progress">Start a new adventure</button>`,
+    `<div class="modal-heading"><span class="eyebrow">SOUVENIRS FROM YOUR ADVENTURE</span><h2 id="modal-title">The field guide.</h2><p>Every great explorer keeps a few good stories.</p></div><div class="collection-summary"><div>${icon("star")}<strong>${stars}<small>/ 3 Power Stars</small></strong></div><div>${icon("coin")}<strong>${coinCount(progress)}<small>coin score</small></strong></div></div><div class="journal-worlds">${worlds.map((world) => `<div class="journal-world"><canvas width="176" height="120" data-thumb="${world.id}" aria-hidden="true"></canvas><div><strong>${world.name}</strong><p>${world.questions.filter((q) => progress.answered.includes(q.id)).length} of 3 scenes complete · ${reelCount(progress, world.id)}/3 reels</p></div><span class="journal-star ${earnedStar(progress, world.id) ? "earned" : ""}">${icon("star")}</span></div>`).join("")}</div><div class="guide-note">${icon("book")}<p>Your progress saves automatically in this browser. Your best streak: ${progress.bestStreak}. Hidden reels: ${reelCount(progress)}/9. Personal best: ${bestScore} coins. Find all 3 Power Stars to unlock Bowser’s showdown.</p></div><button class="text-button" id="reset-progress">Start a new adventure</button>`,
     "guide-dialog",
   );
   drawThumbnails(modalContent);
@@ -455,6 +518,7 @@ function showGuide() {
 function restartAdventure() {
   const soundEnabled = progress.sound;
   Object.assign(progress, freshProgress(), { sound: soundEnabled });
+  game.resetRunEffects();
   clearTimeout(toastTimer);
   $("#toast").hidden = true;
   save();
@@ -465,10 +529,11 @@ function restartAdventure() {
 
 function showGameOver() {
   if (!isGameOver(progress)) return;
+  rememberBest();
   clearTimeout(toastTimer);
   $("#toast").hidden = true;
   openDialog(
-    `<div class="game-over-hearts" aria-hidden="true">${icon("heart")}${icon("heart")}${icon("heart")}</div><div class="modal-heading"><span class="eyebrow">EVERY HERO GETS ANOTHER TAKE</span><h2 id="modal-title">Game Over</h2><p>You’re out of lives. A new adventure starts in Mushroom Meadow with three fresh hearts.</p></div><div class="game-over-score"><span>${icon("star")} ${starCount(progress)} / 3 Power Stars</span><span>${icon("coin")} ${coinCount(progress)} coin score</span></div><p class="restart-note">Starting again clears your coins, Power Stars, and answered trivia.</p><button class="primary-button" id="restart-adventure">Start again ${icon("arrow")}</button>`,
+    `<div class="game-over-hearts" aria-hidden="true">${icon("heart")}${icon("heart")}${icon("heart")}</div><div class="modal-heading"><span class="eyebrow">EVERY HERO GETS ANOTHER TAKE</span><h2 id="modal-title">Game Over</h2><p>You’re out of lives. A new adventure starts in Mushroom Meadow with three fresh hearts.</p></div><div class="game-over-score"><span>${icon("star")} ${starCount(progress)} / 3 Power Stars</span><span>${icon("coin")} ${coinCount(progress)} coin score</span></div><p class="restart-note">Personal best: ${bestScore} coins. Starting again resets this adventure; your record stays.</p><button class="primary-button" id="restart-adventure">Start again ${icon("arrow")}</button>`,
     "game-over-dialog",
   );
   $("#restart-adventure").addEventListener("click", restartAdventure);
@@ -476,25 +541,41 @@ function showGameOver() {
 
 function showHelp() {
   openDialog(
-    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG SCREEN.</span><h2 id="modal-title">Ready, player one?</h2><p>A little exploring. A little trivia. A lot of movie magic.</p></div><div class="help-steps"><div><span>01</span><div><h3>Find your next picture</h3><p>Explore the hub and walk up to a movie painting. Press <kbd>E</kbd> or tap the <kbd>A</kbd> button to enter. You can also use the World map.</p></div></div><div><span>02</span><div><h3>Follow your curiosity</h3><p>Move with <kbd>WASD</kbd>, the <kbd>arrow keys</kbd>, or the touch joystick. Collect coins and jump over bushes with <kbd>Space</kbd> or the jump button.</p></div></div><div><span>03</span><div><h3>Put your movie brain to work</h3><p>Find three golden <strong>?</strong> blocks in each film world. Answer every question to earn a Power Star. You have 5 seconds per attempt. A wrong answer or timeout costs 1 coin; retry for a fresh countdown. Jump over Bowser or steer around him — each bump costs 1 life and 1 coin, then returns you to the entrance. You start with 3 lives. Lose all three and it’s Game Over: starting again resets your adventure. Question blocks and the entrance are safe areas.</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
+    `<div class="modal-heading"><span class="eyebrow">SMALL HERO. BIG BLOCKBUSTER.</span><h2 id="modal-title">Ready, player one?</h2><p>Stunts, secrets, movie trivia, and one very big final scene.</p></div><div class="help-steps"><div><span>01</span><div><h3>Move like a movie hero</h3><p><kbd>WASD</kbd> or the joystick moves Mario. <kbd>Space</kbd> jumps. <kbd>Shift</kbd> or ⚡ dashes through danger. Press <kbd>E</kbd> or A near a painting or question block.</p></div></div><div><span>02</span><div><h3>Make the risky route worth it</h3><p>Jump or dash into crates for coins and a 10-second magnet. Super Stars give 8 seconds of invincibility. Mushrooms restore a heart. Find all 3 hidden film reels in a world for +10 coins and a heart. Bonk Bowser for a bonus!</p></div></div><div><span>03</span><div><h3>Go for the perfect take</h3><p>Each question has 5 seconds. Correct answers earn 5 coins; answer within 2 seconds for +2. Consecutive correct answers build a streak worth up to +4 more! Wrong answers and timeouts cost 1 coin and break the streak. Collect 5 coins quickly for a chain bonus.</p></div></div><div><span>04</span><div><h3>Save the premiere</h3><p>Three lives, three film worlds, three Power Stars. Hazards and Bowser bumps cost a life and a coin. Three lost lives means Game Over. Once all stars are yours, enter The Final Cut. Dodge the fireballs, then jump onto Bowser when he’s tired. Three hits win!</p></div></div></div><button class="primary-button" id="help-play">Let’s-a go! ${icon("arrow")}</button>`,
     "help-dialog",
   );
   $("#help-play").addEventListener("click", () => modal.close());
 }
 
 function showPalace() {
+  if (progress.bossDefeated) {
+    showVictory();
+    return;
+  }
   const complete = starCount(progress) === 3;
   openDialog(
-    `<div class="palace-celebration">${icon("star")}${icon("star")}${icon("star")}</div><div class="modal-heading"><span class="eyebrow">PEACH’S PICTURE PALACE</span><h2 id="modal-title">${complete ? "You’re a movie star!" : "Every star tells a story."}</h2><p>${complete ? "Three worlds explored. Nine scenes solved. The Mushroom Kingdom has a new film legend — and it’s you!" : "The palace is getting ready for the grand premiere. Explore all three film worlds and collect their Power Stars to join the celebration."}</p></div><button class="primary-button" id="palace-continue">${complete ? "Take a victory lap" : "Keep the adventure rolling"} ${icon("arrow")}</button>`,
+    `<div class="palace-celebration">${icon("star")}${icon("star")}${icon("star")}</div><div class="modal-heading"><span class="eyebrow">PEACH’S PICTURE PALACE</span><h2 id="modal-title">${complete ? "Your final scene awaits!" : "Every star tells a story."}</h2><p>${complete ? "Bowser has crashed the premiere! Dodge his fireballs and jump onto him when he’s tired. Three good jumps win the crown. You’ll enter with three fresh hearts." : "Collect the three film worlds’ Power Stars, then return for a showdown worthy of the big screen."}</p></div><button class="primary-button" id="palace-continue">${complete ? "Challenge Bowser" : "Keep exploring"} ${icon("arrow")}</button>`,
     `palace-dialog ${complete ? "all-complete" : ""}`,
   );
   $("#palace-continue").addEventListener("click", () => {
     modal.close();
-    if (complete) {
-      game.celebrate();
-      sound("correct");
-    }
+    if (complete) enterWorld("finale");
   });
+}
+
+function showVictory() {
+  rememberBest();
+  const score = coinCount(progress),
+    rank = score >= 180 ? "S" : score >= 120 ? "A" : "B";
+  openDialog(
+    `<div class="victory-crown">${icon("star")}</div><div class="modal-heading"><span class="eyebrow">BOWSER BEATEN. PREMIERE SAVED.</span><h2 id="modal-title">You’re a screen legend!</h2><p>Three worlds. Nine scenes. One spectacular final jump. Take a bow, Mario.</p></div><div class="victory-rank"><strong>${rank}</strong><span>YOUR FINAL CUT<small>${score} coins · Personal best ${bestScore}</small></span></div><div class="victory-medals"><span>★ ${starCount(progress)} Power Stars</span><span>◉ ${reelCount(progress)}/9 hidden reels</span><span>⚡ Best streak ×${progress.bestStreak}</span></div><p class="restart-note">Beat your record by finding every reel, chaining coins, and answering fast. The first boss victory awards +50 coins.</p><button class="primary-button" id="victory-lap">Take a victory lap ${icon("arrow")}</button><button class="text-button" id="victory-new-run">Start a new adventure</button>`,
+    "victory-dialog",
+  );
+  $("#victory-lap").addEventListener("click", () => {
+    modal.close();
+    enterWorld("hub");
+  });
+  $("#victory-new-run").addEventListener("click", restartAdventure);
 }
 
 function handleInteraction(interaction: Interaction) {
@@ -530,14 +611,67 @@ const game = new Game({
     $("#coin-count").textContent = String(coinCount(progress)).padStart(2, "0");
   },
   onJump: () => sound("jump"),
-  onEnemyHit: () => {
+  onArcadeEvent: (message) => {
+    save();
+    updateUI();
+    sound("coin");
+    toast(message);
+  },
+  onArcadeStatus: (status) => {
+    $<HTMLButtonElement>("#dash-button").disabled =
+      status.dashPercent < 0.999 || isGameOver(progress);
+    $("#dash-button").style.setProperty(
+      "--dash-charge",
+      String(status.dashPercent),
+    );
+    $("#power-status").textContent = status.power
+      ? `${status.power} ${status.powerSeconds}s`
+      : status.dashPercent >= 0.999
+        ? "DASH READY"
+        : "DASH RECHARGING";
+    $("#power-status").classList.toggle("powered", !!status.power);
+    $("#streak-status").textContent =
+      status.combo >= 2
+        ? `COIN CHAIN ×${status.combo}`
+        : `STREAK ×${progress.streak}`;
+    if (currentWorld === "finale") {
+      $("#boss-health").textContent = Array.from({ length: 3 }, (_, i) =>
+        i < status.bossHealth ? "●" : "○",
+      ).join(" ");
+      $("#boss-health").setAttribute(
+        "aria-valuenow",
+        String(status.bossHealth),
+      );
+      $("#boss-health").dataset.health = String(status.bossHealth);
+      $("#boss-phase").textContent =
+        (
+          {
+            warning: "Watch the wind-up…",
+            attack: "Dodge the fireballs!",
+            tired: "NOW! Jump onto Bowser!",
+            hit: "Direct hit!",
+            defeated: "That’s a wrap!",
+          } as Record<string, string>
+        )[status.bossPhase] || "Get ready!";
+      $("#boss-hud").dataset.phase = status.bossPhase;
+    }
+  },
+  onVictory: () => {
+    save();
+    updateUI();
+    sound("correct");
+    setTimeout(() => {
+      if (progress.bossDefeated) showVictory();
+    }, 450);
+  },
+  onEnemyHit: (cause) => {
     save();
     sound("wrong");
     updateUI();
     if (isGameOver(progress)) showGameOver();
     else
       toast(
-        `Bowser bump! -1 life and -1 coin. ${progress.lives} ${progress.lives === 1 ? "life" : "lives"} left. Back to the entrance!`,
+        `${cause === "Bowser" ? "Bowser bump" : cause === "fireball" ? "Fireball hit" : "Hazard hit"}! -1 life and -1 coin. ${progress.lives} ${progress.lives === 1 ? "life" : "lives"} left. Back to the entrance!`,
       );
   },
 });
@@ -589,6 +723,14 @@ $("#jump-button").addEventListener("pointerdown", (event) => {
 $("#jump-button").addEventListener("click", (event) => {
   if (event.detail === 0) game.jump();
 });
+$("#dash-button").addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  game.dash();
+});
+$("#dash-button").addEventListener("click", (event) => {
+  if (event.detail === 0) game.dash();
+});
+$("#finale-card").addEventListener("click", () => enterWorld("finale"));
 $("#interact-button").addEventListener("click", () => game.interact());
 $(".sound-toggle").addEventListener("click", () => {
   progress.sound = !progress.sound;

@@ -5,6 +5,16 @@ export const MAP_H = 850;
 type Ctx = CanvasRenderingContext2D;
 
 export const palettes = {
+  finale: {
+    grass: "#493843",
+    speck: "#47333a",
+    light: "#b48c6f",
+    path: "#756568",
+    edge: "#a87c60",
+    leaf: "#805751",
+    tree: "#4c3c47",
+    water: "#e07a47",
+  },
   hub: {
     grass: "#96bf79",
     speck: "#82af68",

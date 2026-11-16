@@ -36,6 +36,10 @@ export class QuestionCountdown {
     else this.events.onTick(remaining);
   }
 
+  get remainingMs(): number {
+    return Math.max(0, this.deadline - this.now());
+  }
+
   trySubmit(): boolean {
     if (!this.running) return false;
     const remaining = this.deadline - this.now();

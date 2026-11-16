@@ -1,5 +1,7 @@
 export type FilmWorldId = "jungle" | "galaxy" | "castle";
-export type WorldId = "hub" | FilmWorldId;
+export type WorldId = "hub" | "finale" | FilmWorldId;
+export const isFilmWorld = (world: WorldId): world is FilmWorldId =>
+  world !== "hub" && world !== "finale";
 
 export interface Question {
   id: string;
@@ -204,6 +206,7 @@ export interface Coin {
   y: number;
 }
 export function coinsForWorld(world: WorldId): Coin[] {
+  if (world === "finale") return [];
   const positions =
     world === "hub"
       ? [

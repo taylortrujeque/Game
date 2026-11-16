@@ -122,7 +122,9 @@ test("earns all stars, retries trivia, saves progress, and reaches the finale", 
   await move(page, "a", 420);
   await move(page, "w", 420);
   await interact(page, "Visit the Picture Palace");
-  await expect(page.locator("#modal-title")).toHaveText("You’re a movie star!");
+  await expect(page.locator("#modal-title")).toHaveText(
+    "Your final scene awaits!",
+  );
   expect(errors).toEqual([]);
 });
 
@@ -320,6 +322,11 @@ test("three Bowser hits force game over, survive reload, and require a fresh sta
     enemyHits: 0,
     lives: 3,
     sound: true,
+    extras: [],
+    bonusCoins: 0,
+    streak: 0,
+    bestStreak: 0,
+    bossDefeated: false,
   });
   await page.locator("#map-nav").click();
   await page.locator('#modal [data-world="galaxy"]').click();

@@ -1,3 +1,4 @@
+import { allExtras, extraIds } from "./arcade";
 import {
   allCoinIds,
   questionIds,
@@ -15,6 +16,11 @@ export interface Progress {
   enemyHits: number;
   lives: number;
   sound: boolean;
+  extras: string[];
+  bonusCoins: number;
+  streak: number;
+  bestStreak: number;
+  bossDefeated: boolean;
 }
 export const freshProgress = (): Progress => ({
   version: 1,
@@ -24,6 +30,11 @@ export const freshProgress = (): Progress => ({
   enemyHits: 0,
   lives: MAX_LIVES,
   sound: false,
+  extras: [],
+  bonusCoins: 0,
+  streak: 0,
+  bestStreak: 0,
+  bossDefeated: false,
 });
 
 export function parseProgress(raw: string | null): Progress {
@@ -61,6 +72,20 @@ export function parseProgress(raw: string | null): Progress {
           ? value.lives
           : MAX_LIVES,
       sound: value.sound === true,
+      extras: validIds(value.extras, extraIds),
+      bonusCoins:
+        Number.isSafeInteger(value.bonusCoins) && value.bonusCoins >= 0
+          ? Math.min(value.bonusCoins, 1000000)
+          : 0,
+      streak:
+        Number.isInteger(value.streak) && value.streak >= 0
+          ? Math.min(value.streak, 9)
+          : 0,
+      bestStreak:
+        Number.isInteger(value.bestStreak) && value.bestStreak >= 0
+          ? Math.min(value.bestStreak, 9)
+          : 0,
+      bossDefeated: value.bossDefeated === true,
     };
   } catch {
     return freshProgress();
@@ -86,13 +111,15 @@ export function coinCount(progress: Progress): number {
     progress.collected.length +
     progress.answered.length * 5 -
     progress.wrongAnswers -
-    progress.enemyHits
+    progress.enemyHits +
+    progress.bonusCoins
   );
 }
 export function answerQuestion(
   progress: Progress,
   id: string,
   option: number | null,
+  remainingMs = 0,
 ): boolean {
   if (isGameOver(progress)) return false;
   const question = (["jungle", "galaxy", "castle"] as FilmWorldId[])
@@ -110,9 +137,14 @@ export function answerQuestion(
   // A null selection is a timed-out question, with the same one-point penalty.
   if (question.answer !== option) {
     progress.wrongAnswers += 1;
+    progress.streak = 0;
     return false;
   }
   progress.answered.push(id);
+  progress.streak++;
+  progress.bestStreak = Math.max(progress.bestStreak, progress.streak);
+  progress.bonusCoins +=
+    Math.min(progress.streak - 1, 4) + (remainingMs >= 3000 ? 2 : 0);
   return true;
 }
 export function collectCoin(progress: Progress, id: string): boolean {
@@ -130,5 +162,64 @@ export function takeEnemyHit(progress: Progress): boolean {
   if (isGameOver(progress)) return false;
   progress.enemyHits += 1;
   progress.lives -= 1;
+  progress.streak = 0;
+  return true;
+}
+
+export function reelCount(progress: Progress, world?: FilmWorldId): number {
+  return progress.extras.filter(
+    (id) => id.includes("-reel-") && (!world || id.startsWith(world + "-")),
+  ).length;
+}
+export function claimExtra(
+  progress: Progress,
+  id: string,
+): {
+  kind: string;
+  coins: number;
+  healed: boolean;
+  setComplete: boolean;
+} | null {
+  if (isGameOver(progress) || progress.extras.includes(id)) return null;
+  const extra = allExtras.find((item) => item.id === id);
+  if (!extra) return null;
+  progress.extras.push(id);
+  let coins =
+    extra.kind === "reel"
+      ? 2
+      : extra.kind === "crate" || extra.kind === "bonk"
+        ? 3
+        : 0;
+  let healed = false;
+  let setComplete = false;
+  if (extra.kind === "mushroom") {
+    if (progress.lives < MAX_LIVES) {
+      progress.lives++;
+      healed = true;
+    } else coins = 5;
+  }
+  if (extra.kind === "reel") {
+    const world = id.split("-")[0] as FilmWorldId;
+    setComplete = reelCount(progress, world) === 3;
+    if (setComplete) {
+      coins += 10;
+      if (progress.lives < MAX_LIVES) {
+        progress.lives++;
+        healed = true;
+      }
+    }
+  }
+  progress.bonusCoins += coins;
+  return { kind: extra.kind, coins, healed, setComplete };
+}
+export function winFinale(progress: Progress): boolean {
+  if (
+    isGameOver(progress) ||
+    starCount(progress) !== 3 ||
+    progress.bossDefeated
+  )
+    return false;
+  progress.bossDefeated = true;
+  progress.bonusCoins += 50;
   return true;
 }
