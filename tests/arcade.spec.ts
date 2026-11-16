@@ -122,8 +122,7 @@ test("the finale unlocks after three stars and Bowser can be beaten with three t
   );
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
   await page.keyboard.down("w");
-  await page.keyboard.press("Shift");
-  await page.clock.runFor(450);
+  await page.clock.runFor(780);
   await page.keyboard.up("w");
   async function waitForPhase(phase: string) {
     for (let i = 0; i < 100; i++) {
@@ -137,9 +136,16 @@ test("the finale unlocks after three stars and Bowser can be beaten with three t
   }
   for (const health of [2, 1, 0]) {
     await waitForPhase("attack");
-    await page.clock.runFor(130);
-    await page.keyboard.press("Space");
+    // Dash out of the volley instead of relying on a narrow jump-over window.
+    await page.keyboard.down("a");
+    await page.keyboard.press("Shift");
+    await page.clock.runFor(450);
+    await page.keyboard.up("a");
     await waitForPhase("tired");
+    await page.keyboard.down("d");
+    await page.keyboard.press("Shift");
+    await page.clock.runFor(450);
+    await page.keyboard.up("d");
     await page.keyboard.down("w");
     await page.keyboard.press("Space");
     await page.clock.runFor(500);
